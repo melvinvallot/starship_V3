@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Starship V3</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Starship V3 : le plus grand lanceur jamais construit, en 3D. Anatomie, séquence de lancement, moteurs Raptor 3, profil de mission.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+
+<!-- ============ LOADER ============ -->
+<div id="loader" aria-hidden="true">
+  <div class="ld-row ld-head"><span>Starbase, Texas</span><span>25.997° N · 97.157° O</span></div>
+  <div class="ld-count"><span class="ld-t">T-</span><span id="ldNum">10</span></div>
+  <div class="ld-bar"><i id="ldBar"></i></div>
+  <div class="ld-row"><span id="ldMsg">Chargement des ergols…</span><span id="ldPct">0 %</span></div>
+</div>
+
+<!-- ============ 3D ============ -->
+<canvas id="gl" aria-hidden="true"></canvas>
+<div id="grain" aria-hidden="true"></div>
+
+<!-- ============ ANNOTATIONS DU HERO (suivent la fusée 3D) ============ -->
+<div id="annot" aria-hidden="true">
+  <svg id="annotSvg" width="100%" height="100%"></svg>
+  <div class="annot-labels" id="annotLabels"></div>
+</div>
+
+<!-- ============ NAVIGATION ============ -->
+<header class="nav" id="nav">
+  <a class="brand" href="#hero" data-scroll><span class="brand-mark">S</span><span>Starship<sup>V3</sup></span></a>
+  <nav class="nav-links" aria-label="Sections">
+    <a href="#anatomie" data-scroll>Anatomie</a>
+    <a href="#lancement" data-scroll>Lancement</a>
+    <a href="#raptor" data-scroll>Raptor 3</a>
+    <a href="#mission" data-scroll>Mission</a>
+    <a href="#echelle" data-scroll>Échelle</a>
+    <a href="#versions" data-scroll>Versions</a>
+  </nav>
+  <div class="nav-clock"><span class="dot"></span><span>T+ <b id="clock">00:00:00</b></span></div>
+  <div class="nav-progress"><i id="navProgress"></i></div>
+</header>
+
+<aside class="rail" aria-hidden="true">
+  <a href="#hero" data-scroll data-rail="hero"><i></i><span>Affiche</span></a>
+  <a href="#anatomie" data-scroll data-rail="anatomie"><i></i><span>Anatomie</span></a>
+  <a href="#lancement" data-scroll data-rail="lancement"><i></i><span>Lancement</span></a>
+  <a href="#raptor" data-scroll data-rail="raptor"><i></i><span>Raptor 3</span></a>
+  <a href="#mission" data-scroll data-rail="mission"><i></i><span>Mission</span></a>
+  <a href="#echelle" data-scroll data-rail="echelle"><i></i><span>Échelle</span></a>
+  <a href="#versions" data-scroll data-rail="versions"><i></i><span>Versions</span></a>
+</aside>
+
+<div id="cursor" aria-hidden="true"><i></i><span id="cursorTxt">000 · 000</span></div>
+
+<main>
+
+<!-- ============ HERO / AFFICHE ============ -->
+<section id="hero" class="hero">
+  <h1 class="sr">Starship V3</h1>
+  <div class="hero-top">
+    <span class="tag">Super Heavy + Starship · Bloc 3</span>
+    <span class="tag tag-r">Entièrement réutilisable</span>
+  </div>
+
+  <dl class="specs">
+    <div><dt>Masse</dt><dd><b data-count="5600000">5 600 000</b> kg</dd></div>
+    <div><dt>Hauteur</dt><dd>408 ft (<b data-count="124.4" data-dec="1">124,4</b> m)</dd></div>
+    <div><dt>Diamètre</dt><dd>29,5 ft (<b data-count="9">9</b> m)</dd></div>
+  </dl>
+
+  <div class="blueprint" aria-hidden="true">
+    <svg viewBox="0 0 120 420" class="bp">
+      <g class="bp-draw">
+        <!-- Starship -->
+        <path d="M60 14 C66 30 70 52 70 78 L70 182 L50 182 L50 78 C50 52 54 30 60 14 Z"/>
+        <path d="M70 70 L78 88 L78 104 L70 100"/>
+        <path d="M50 70 L42 88 L42 104 L50 100"/>
+        <path d="M70 150 L82 168 L82 182 L70 182"/>
+        <path d="M50 150 L38 168 L38 182 L50 182"/>
+        <path d="M54 182 L52 190 M60 182 L60 190 M66 182 L68 190"/>
+        <line x1="50" y1="110" x2="70" y2="110"/><line x1="50" y1="140" x2="70" y2="140"/>
+        <!-- anneau -->
+        <rect x="50" y="190" width="20" height="7"/>
+        <!-- Super Heavy -->
+        <path d="M50 197 L50 396 L70 396 L70 197"/>
+        <path d="M70 204 L80 204 M50 204 L40 204"/>
+        <line x1="50" y1="240" x2="70" y2="240"/><line x1="50" y1="300" x2="70" y2="300"/><line x1="50" y1="360" x2="70" y2="360"/>
+        <path d="M52 396 L50 404 M56 396 L55 404 M60 396 L60 404 M64 396 L65 404 M68 396 L70 404"/>
+        <!-- cotes -->
+        <path d="M100 14 L100 404 M95 14 L105 14 M95 404 L105 404" class="bp-dim"/>
+        <path d="M20 14 L20 186 M16 14 L24 14 M16 186 L24 186" class="bp-dim"/>
+        <path d="M20 192 L20 404 M16 192 L24 192 M16 404 L24 404" class="bp-dim"/>
+      </g>
+      <text x="108" y="215" transform="rotate(90 108 215)">408 FEET</text>
+      <text x="12" y="100" transform="rotate(-90 12 100)">PARTIE B</text>
+      <text x="12" y="300" transform="rotate(-90 12 300)">PARTIE A</text>
+    </svg>
+  </div>
+
+  <button class="paper-toggle" id="paperToggle" type="button" aria-pressed="false">
+    <span class="pt-label">Affiche</span>
+    <span class="pt-switch"><span class="pt-opt pt-dark">Noire</span><span class="pt-opt pt-light">Blanche</span><i></i></span>
+  </button>
+
+  <div class="scroll-hint"><span>Défiler pour explorer</span><i></i></div>
+</section>
+
+<!-- ============ INTRO ============ -->
+<section id="intro" class="intro">
+  <div class="wrap">
+    <p class="eyebrow">Le système</p>
+    <p class="reveal-words" id="revealWords">Deux étages. Trente-neuf moteurs. Cent vingt-quatre mètres d'acier inoxydable. Starship&nbsp;V3 est le plus grand lanceur jamais construit, et il est conçu pour revenir, être ravitaillé et repartir.</p>
+  </div>
+</section>
+
+<!-- ============ ANATOMIE (épinglée, caméra 3D) ============ -->
+<section id="anatomie" class="pin anat">
+  <div class="sticky">
+    <div class="anat-card" id="anatCard">
+      <div class="anat-meta"><span class="eyebrow">Anatomie</span><span class="anat-idx"><b id="anIdx">01</b> / <span id="anTot">11</span></span></div>
+      <div class="anat-body" id="anatBody">
+        <h2 id="anTitle">Le système Starship</h2>
+        <p id="anText">Super Heavy, le premier étage, propulse l'ensemble pendant environ deux minutes et demie. Starship, le second étage, termine le trajet jusqu'à l'orbite.</p>
+        <div class="anat-stat"><b id="anStat">124,4 m</b><span id="anStatL">hauteur totale</span></div>
+      </div>
+      <div class="anat-bar"><i id="anBar"></i></div>
+    </div>
+    <ol class="anat-list" id="anatList"></ol>
+  </div>
+</section>
+
+<!-- ============ LANCEMENT (épinglé) ============ -->
+<section id="lancement" class="pin launch">
+  <div class="sticky">
+    <div class="launch-head" id="launchHead">
+      <p class="eyebrow">Séquence de lancement</p>
+      <h2>Du pas de tir<br>à l'espace</h2>
+      <p class="muted">Faites défiler pour lancer le compte à rebours.</p>
+    </div>
+    <div class="callout" id="callout"><span id="calloutTxt">T-10</span><small id="calloutSub">Compte à rebours</small></div>
+
+    <div class="hud" id="hud">
+      <div class="gauge" id="gBooster">
+        <svg viewBox="0 0 120 120"><circle class="g-bg" cx="60" cy="60" r="50"/><circle class="g-spd" cx="60" cy="60" r="50"/><circle class="g-bg2" cx="60" cy="60" r="41"/><circle class="g-alt" cx="60" cy="60" r="41"/></svg>
+        <div class="g-txt"><span class="g-name">Super Heavy</span><span><b class="g-v">0</b> km/h</span><span><b class="g-a">0</b> km</span></div>
+      </div>
+      <div class="hud-mid">
+        <div class="hud-clock">T<span id="hudSign">-</span><b id="hudClock">00:00:10</b></div>
+        <div class="hud-line">
+          <i id="hudFill"></i>
+          <span style="left:0%" data-ev="0">Décollage</span>
+          <span style="left:16%" data-ev="1">Max-Q</span>
+          <span style="left:38%" data-ev="2">Hot staging</span>
+          <span style="left:62%" data-ev="3">Boostback</span>
+          <span style="left:92%" data-ev="4">Orbite</span>
+        </div>
+        <div class="hud-note">Télémétrie simulée, valeurs approximatives</div>
+      </div>
+      <div class="gauge" id="gShip">
+        <svg viewBox="0 0 120 120"><circle class="g-bg" cx="60" cy="60" r="50"/><circle class="g-spd" cx="60" cy="60" r="50"/><circle class="g-bg2" cx="60" cy="60" r="41"/><circle class="g-alt" cx="60" cy="60" r="41"/></svg>
+        <div class="g-txt"><span class="g-name">Starship</span><span><b class="g-v">0</b> km/h</span><span><b class="g-a">0</b> km</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ BANDEAU ============ -->
+<div class="marquee" aria-hidden="true"><div class="marquee-track" id="marquee">
+  <span>Starbase · Texas</span><span>25.997° N 97.157° O</span><span>Acier inoxydable</span><span>Méthane + oxygène liquide</span><span>39 moteurs Raptor 3</span><span>Capture par la tour</span><span>Ravitaillement en orbite</span><span>Lune · Mars</span>
+</div></div>
+
+<!-- ============ RAPTOR 3 ============ -->
+<section id="raptor" class="solid raptor">
+  <div class="wrap two">
+    <div class="raptor-copy">
+      <p class="eyebrow">Propulsion</p>
+      <h2>Raptor 3</h2>
+      <p class="lead">Un moteur à combustion étagée à flux complet, alimenté en méthane et en oxygène liquide. Sur Raptor 3, le refroidissement, les capteurs et une grande partie de la tuyauterie sont intégrés directement dans la structure. Le carénage de protection disparaît, le moteur s'allège et se simplifie.</p>
+      <dl class="stats">
+        <div><dt>Poussée</dt><dd><b>≈ 280</b> tf</dd></div>
+        <div><dt>Pression de chambre</dt><dd><b>≈ 350</b> bar</dd></div>
+        <div><dt>Masse</dt><dd><b>≈ 1 525</b> kg</dd></div>
+        <div><dt>Impulsion spécifique</dt><dd><b>≈ 350</b> s</dd></div>
+      </dl>
+      <div class="gens" id="gens">
+        <p class="eyebrow">Poussée par génération</p>
+        <div class="gen"><span>Raptor 1</span><div class="gen-bar"><i style="--w:66%"></i></div><b>≈ 185 tf</b></div>
+        <div class="gen"><span>Raptor 2</span><div class="gen-bar"><i style="--w:82%"></i></div><b>≈ 230 tf</b></div>
+        <div class="gen gen-hi"><span>Raptor 3</span><div class="gen-bar"><i style="--w:100%"></i></div><b>≈ 280 tf</b></div>
+      </div>
+    </div>
+    <div class="engines">
+      <div class="eng-wrap">
+        <svg viewBox="-110 -110 220 220" id="engSvg" role="img" aria-label="Disposition des 33 moteurs Raptor 3 sous le booster">
+          <defs>
+            <radialGradient id="gFire"><stop offset="0" stop-color="#fff6e8"/><stop offset=".35" stop-color="#ffc27a"/><stop offset=".7" stop-color="#ff6a1f"/><stop offset="1" stop-color="#ff3d00" stop-opacity="0"/></radialGradient>
+            <radialGradient id="gBell"><stop offset="0" stop-color="#0a0908"/><stop offset=".72" stop-color="#2a2522"/><stop offset=".9" stop-color="#7c6e62"/><stop offset="1" stop-color="#2b2724"/></radialGradient>
+            <radialGradient id="gSkirt"><stop offset=".8" stop-color="#16171a"/><stop offset=".97" stop-color="#3c3f45"/><stop offset="1" stop-color="#8d939b"/></radialGradient>
+          </defs>
+          <circle r="104" fill="url(#gSkirt)"/>
+          <g id="engG"></g>
+        </svg>
+        <div class="eng-tip" id="engTip"></div>
+      </div>
+      <div class="eng-read">
+        <div><span class="eyebrow">Moteurs allumés</span><b id="engCount">0</b><span>/ 33</span></div>
+        <div><span class="eyebrow">Poussée cumulée</span><b id="engThrust">0</b><span>tf</span></div>
+      </div>
+      <p class="eng-cap">3 moteurs au centre, 10 sur l'anneau intérieur, 20 sur l'anneau extérieur. Les 13 moteurs centraux orientables pilotent le booster et assurent les allumages de retour.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MISSION (défilement horizontal) ============ -->
+<section id="mission" class="pin mission">
+  <div class="sticky">
+    <div class="mission-head wrap">
+      <p class="eyebrow">Profil de mission</p>
+      <h2>Neuf étapes, deux retours</h2>
+    </div>
+    <div class="track" id="track">
+      <svg class="traj" id="traj" preserveAspectRatio="none" viewBox="0 0 1000 100"><path id="trajPath" d="M0 92 C 120 92 180 70 260 40 S 420 6 520 10 S 760 20 860 60 S 960 92 1000 92"/></svg>
+      <article class="mcard"><span class="m-n">01</span><span class="m-t">T+00:00</span><h3>Décollage</h3><p>Les 33 moteurs de Super Heavy s'allument en quelques secondes. Plus de 9 000 tonnes-force arrachent les 5 600 tonnes du pas de tir.</p></article>
+      <article class="mcard"><span class="m-n">02</span><span class="m-t">≈ T+01:00</span><h3>Max-Q</h3><p>Le moment de pression aérodynamique maximale. Les moteurs réduisent brièvement leur poussée pour soulager la structure.</p></article>
+      <article class="mcard"><span class="m-n">03</span><span class="m-t">≈ T+02:40</span><h3>Hot staging</h3><p>Vers 65 km d'altitude, les six moteurs du vaisseau s'allument alors qu'il est encore posé sur le booster, puis les deux étages se séparent.</p></article>
+      <article class="mcard"><span class="m-n">04</span><span class="m-t">≈ T+02:50</span><h3>Boostback</h3><p>Super Heavy pivote et rallume ses moteurs centraux pour inverser sa course et repartir vers le site de lancement.</p></article>
+      <article class="mcard"><span class="m-n">05</span><span class="m-t">≈ T+06:40</span><h3>Capture du booster</h3><p>Après un dernier allumage, les deux bras de la tour, surnommés « chopsticks », saisissent le booster en vol stationnaire.</p></article>
+      <article class="mcard"><span class="m-n">06</span><span class="m-t">≈ T+08:40</span><h3>Orbite</h3><p>Le vaisseau coupe ses moteurs. Il peut ouvrir sa soute et déployer des satellites Starlink de nouvelle génération.</p></article>
+      <article class="mcard"><span class="m-n">07</span><span class="m-t">Missions futures</span><h3>Ravitaillement</h3><p>Des vaisseaux citernes transfèrent leurs ergols en orbite. C'est la clé pour aller jusqu'à la Lune avec Artemis, puis vers Mars.</p></article>
+      <article class="mcard"><span class="m-n">08</span><span class="m-t">≈ T+47:00</span><h3>Rentrée</h3><p>Le vaisseau frappe l'atmosphère à plus de 26 000 km/h, bouclier thermique en avant, enveloppé d'un plasma à plus de 1 400 °C.</p></article>
+      <article class="mcard"><span class="m-n">09</span><span class="m-t">≈ T+65:00</span><h3>Bascule et capture</h3><p>En chute à plat, le vaisseau pivote à la verticale au dernier moment, rallume ses moteurs et se fait à son tour rattraper par la tour.</p></article>
+    </div>
+    <div class="mission-progress"><i id="missionBar"></i></div>
+  </div>
+</section>
+
+<!-- ============ ÉCHELLE ============ -->
+<section id="echelle" class="solid scale">
+  <div class="wrap">
+    <p class="eyebrow">Échelle</p>
+    <h2>Plus haut que Saturn&nbsp;V</h2>
+    <p class="lead narrow">Hauteurs à l'échelle, en mètres. Survolez une silhouette pour la comparer à Starship V3.</p>
+    <div class="scale-chart" id="scaleChart">
+      <div class="sc-grid" aria-hidden="true"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VERSIONS ============ -->
+<section id="versions" class="solid versions">
+  <div class="wrap">
+    <p class="eyebrow">Évolution</p>
+    <h2>V1, V2, V3</h2>
+    <div class="tabs" role="tablist" id="vTabs">
+      <button role="tab" type="button" data-v="0" aria-selected="false">V1</button>
+      <button role="tab" type="button" data-v="1" aria-selected="false">V2</button>
+      <button role="tab" type="button" data-v="2" aria-selected="true">V3</button>
+      <i class="tab-ink" id="tabInk"></i>
+    </div>
+    <div class="vgrid" id="vGrid"></div>
+    <p class="fine">Valeurs arrondies, issues de sources publiques. Les chiffres de V3 sont des objectifs annoncés.</p>
+  </div>
+</section>
+
+<!-- ============ FINAL ============ -->
+<section id="final" class="solid final">
+  <canvas id="mars" width="560" height="560" aria-hidden="true"></canvas>
+  <div class="wrap final-copy">
+    <p class="eyebrow">Destination</p>
+    <h2 class="final-title">Prochain arrêt&nbsp;:<br><span>Mars.</span></h2>
+    <p class="lead narrow">Un vaisseau ravitaillé en orbite, réutilisable, capable d'emporter plus de 100 tonnes. Starship V3 est l'étape qui rend le voyage envisageable.</p>
+    <button class="btn" type="button" id="toTop"><span>Revenir au pas de tir</span><i>↑</i></button>
+  </div>
+  <footer class="foot">
+    <p>Site conceptuel non officiel, inspiré de l'affiche « Limited 02 · Starship V3 » d'Arte Collective. Starship est un véhicule développé par SpaceX. Modèle 3D et télémétrie simulés.</p>
+  </footer>
+</section>
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script src="assets/js/app.js"></script>
+<script type="module" src="assets/js/scene.js"></script>
+</body>
+</html>
