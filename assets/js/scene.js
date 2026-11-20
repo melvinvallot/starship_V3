@@ -210,7 +210,7 @@ function makeThree() {
   // embouts arrondis
   const mat = new THREE.MeshPhysicalMaterial({
     color: 0xf2f2f2, metalness: 1, roughness: 0.14, envMapIntensity: 1.25,
-    iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 640], clearcoat: 1, clearcoatRoughness: 0.08,
+    iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 640], clearcoat: 1, clearcoatRoughness: 0.08, transparent: true,
   });
   const g = new THREE.Group();
   g.add(new THREE.Mesh(geo, mat));
@@ -346,7 +346,7 @@ function frame() {
   T.shiftY = mobile ? -0.17 * sstep(0.0, 0.03, anatP) : 0;
   T.gap = 0.3 * (1 - sstep(0.1, 0.8, introP));
   // section « Le système » : gros plan sur le vaisseau seul, le booster sort par le bas
-  const shipOnly = sstep(0.05, 0.75, introP) * (1 - sstep(0.0, 0.07, anatP));
+  const shipOnly = sstep(0.22, 0.85, introP) * (1 - sstep(0.0, 0.07, anatP));
   T.ty = lerp(T.ty, BOOST_TOP + 2.75, shipOnly);
   T.d = lerp(T.d, 10.5 * (mobile ? 1.3 : 1), shipOnly);
   T.rot = lerp(T.rot, 0.35, shipOnly);
@@ -413,14 +413,14 @@ function frame() {
   shipPivot.rotation.z = -sstep(0.0, 1.0, clamp((launchP - 0.6) / 0.4)) * 0.12;
 
   // hero : « 3 » et texte
-  const hv = cur.hero * rvE * (1 - sstep(0.45, 0.9, heroP)) * (anatP > 0 || launchP > 0 ? 0 : 1);
+  const hv = rvE * (1 - sstep(0.02, 0.32, heroP)) * (anatP > 0 || launchP > 0 ? 0 : 1);
   heroGroup.visible = hv > 0.003;
   heroGroup.position.y = 0.05 + (1 - cur.hero) * 2;
   three3.scale.setScalar(lerp(0.75, 1, hv));
   three3.rotation.y = (reduce ? 0 : SS.mx * 0.35 + Math.sin(time * 0.35) * 0.12);
   three3.rotation.x = (reduce ? 0 : SS.my * 0.12);
   three3.position.z = -2.0 - (1 - cur.hero) * 6;
-  three3.children.forEach((m) => { m.material.transparent = hv < 0.999; m.material.opacity = hv; });
+  three3.children.forEach((m) => { m.material.opacity = hv; }); // matériau toujours transparent : le fondu fonctionne
   textMat.opacity = clamp((rv - 0.25) / 0.5) * Math.min(cur.hero, hv * 4);
   textMat.color.setRGB(0.93 - cur.paper * 0.9, 0.93 - cur.paper * 0.9, 0.94 - cur.paper * 0.89);
   textPlane.position.x = (reduce ? 0 : SS.mx * -0.15);
