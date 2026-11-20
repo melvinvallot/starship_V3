@@ -68,19 +68,6 @@ h2 { font-size: clamp(44px, 7.4vw, 120px); font-variation-settings: "wdth" 100; 
 }
 @keyframes grain { 0%{transform:translate(0,0)} 20%{transform:translate(-3%,2%)} 40%{transform:translate(2%,-3%)} 60%{transform:translate(-2%,-1%)} 80%{transform:translate(3%,3%)} 100%{transform:translate(0,0)} }
 
-/* ---------- annotations ---------- */
-#annot { position: fixed; inset: 0; z-index: 3; pointer-events: none; }
-#annotSvg { position: absolute; inset: 0; overflow: visible; }
-#annotSvg path { fill: none; stroke: var(--gold); stroke-width: 1; vector-effect: non-scaling-stroke; }
-#annotSvg circle { fill: var(--gold); }
-.annot-labels { position: absolute; inset: 0; }
-.alabel {
-  position: absolute; left: 0; top: 0; font: 500 11px/1.15 var(--f-body); color: var(--hero-fg);
-  white-space: nowrap; will-change: transform; transition: color .6s;
-}
-.alabel.l { text-align: right; }
-.alabel small { display: block; font: 400 9px/1.2 var(--f-mono); color: var(--gold); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 2px; }
-@media (max-width: 760px) { #annot { display: none; } }
 
 /* ---------- nav ---------- */
 .nav {
@@ -169,8 +156,8 @@ body.paper .pt-light { color: #f2f2f0; }
 .intro, .pin { position: relative; z-index: 2; }
 .intro { padding: 14vh 0 18vh; }
 .intro .wrap { max-width: 1360px; }
-.reveal-words { font: 700 clamp(28px, 3.4vw, 52px)/1.1 var(--f-display); letter-spacing: -.03em; max-width: 20ch; margin: 0; text-wrap: balance; }
-.reveal-words .w { display: inline-block; opacity: .14; transition: opacity .2s; }
+.reveal-words { font: 700 clamp(26px, 3vw, 46px)/1.12 var(--f-display); letter-spacing: -.025em; max-width: 22ch; margin: 0; display: grid; gap: .55em; }
+.reveal-words .ln { display: block; text-wrap: balance; will-change: transform, opacity; }
 @media (max-width: 760px) { .intro { padding: 40vh 0 20vh; } .reveal-words { text-shadow: 0 2px 30px rgba(0,0,0,.9); } }
 .intro-grid { display: grid; gap: 56px; }
 .intro-grid > * { min-width: 0; max-width: 700px; }

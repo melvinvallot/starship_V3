@@ -130,6 +130,8 @@ function tileTextures() {
     const x = i * cw + (j & 1 ? cw / 2 : 0), y = j * rh, sh = 20 + r() * 20 + (r() < 0.025 ? 40 : 0);
     g.fillStyle = `rgb(${sh | 0},${sh | 0},${(sh + 3) | 0})`; hexPath(g, x, y, hr - 1.3, hr - 1.3); g.fill();
     q.fillStyle = '#c8c8c8'; hexPath(q, x, y, hr - 1.3, hr - 1.3); q.fill();
+    g.fillStyle = 'rgba(225,228,232,.85)';
+    for (const kk of [0, 1]) { const an = Math.PI / 6 + (kk * Math.PI) / 3; g.fillRect(x + Math.cos(an) * hr - 1.5, y + Math.sin(an) * hr - 1.5, 3, 3); }
   }
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.wrapS = map.wrapT = THREE.RepeatWrapping;
   const bump = new THREE.CanvasTexture(b); bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
@@ -322,7 +324,25 @@ function hullTextures(o) {
       k.fillStyle = 'rgb(210,210,210)'; roundRect(k, x - rx, py - ry, rx * 2, ry * 2, rx * 0.15); k.fill();
       q.fillStyle = 'rgb(0,200,0)'; q.fillRect(x - rx, py - ry, rx * 2, ry * 2);
       ir.fillStyle = 'rgb(0,128,0)'; ir.fillRect((x - rx) / 4, (py - ry) / 4, rx / 2, ry / 2);
+    } else if (kind === 'slot') { // fente noire horizontale arrondie
+      const w = rad * pxU(y), h = 0.022 * pxV;
+      g.fillStyle = '#08080a'; roundRect(g, x - w / 2, py - h / 2, w, h, h / 2); g.fill();
+      g.strokeStyle = 'rgba(120,124,130,.8)'; g.lineWidth = 2; roundRect(g, x - w / 2 - 3, py - h / 2 - 3, w + 6, h + 6, h / 2 + 3); g.stroke();
+      k.fillStyle = 'rgb(60,60,60)'; roundRect(k, x - w / 2, py - h / 2, w, h, h / 2); k.fill();
+      q.fillStyle = 'rgb(0,180,60)'; roundRect(q, x - w / 2, py - h / 2, w, h, h / 2); q.fill();
+    } else if (kind === 'vent') { // grappe de trous d'évent
+      const st = 0.022 * pxU(y), rr = st * 0.36;
+      for (let jj = 0; jj < 4; jj++) for (let ii = 0; ii < 5; ii++) {
+        const hx = x + (ii - 2) * st + (jj & 1 ? st / 2 : 0), hy = py + (jj - 1.5) * st * 0.9;
+        g.fillStyle = '#060608'; g.beginPath(); g.arc(hx, hy, rr, 0, TAU); g.fill();
+        k.fillStyle = 'rgb(50,50,50)'; k.beginPath(); k.arc(hx, hy, rr, 0, TAU); k.fill();
+      }
+    } else if (kind === 'grille') { // trappe à lames horizontales
+      const w = rad * pxU(y), h = rad * pxV * 1.1;
+      g.fillStyle = 'rgba(60,62,68,.9)'; g.fillRect(x - w / 2, py - h / 2, w, h);
+      for (let yy = py - h / 2 + 4; yy < py + h / 2 - 3; yy += 7) { g.fillStyle = 'rgba(200,204,210,.8)'; g.fillRect(x - w / 2 + 3, yy, w - 6, 3); k.fillStyle = 'rgb(200,200,200)'; k.fillRect(x - w / 2 + 3, yy, w - 6, 3); }
     } else { // hublot sombre
+      ir.fillStyle = 'rgb(0,128,0)'; ir.fillRect((x - rx * 1.5) / 4, (py - ry * 1.5) / 4, rx * 0.75 + 1, ry * 0.75 + 1);
       g.fillStyle = 'rgba(70,72,78,.9)'; g.beginPath(); g.ellipse(x, py, rx * 1.4, ry * 1.4, 0, 0, TAU); g.fill();
       blob(g, x, py, rx, ry, 'rgba(6,6,8,1)', 'rgba(26,26,30,1)');
       k.fillStyle = 'rgb(190,190,190)'; k.beginPath(); k.ellipse(x, py, rx * 1.4, ry * 1.4, 0, 0, TAU); k.fill();
@@ -357,15 +377,29 @@ function hullTextures(o) {
       const rx = cpx / Math.sqrt(3), ryp = hrW * pxV;
       if (j % 3 === 0) step = (r() * 3 | 0) - 1;                      // marches du bord
       const aEdge = o.tiles(y) + step * (cwW / rad) * 0.5;            // demi-largeur de la zone inox (rad)
-      const odd = (j & 1) ? cpx / 2 : 0;
+      const rect = o.rectBand && y > o.rectBand[0] && y < o.rectBand[1];
+      const odd = (j & 1) && !rect ? cpx / 2 : 0;
       for (let i = 0; i < n; i++) {
         const x = i * cpx + odd, a = (x / W - 0.5) * TAU;
         if (Math.abs(a) < aEdge) continue;
         const sh = 9 + r() * 15 + (r() < 0.02 ? 30 : 0), rough = (190 + r() * 50) | 0;
         const xs = [x]; if (x < rx + 3) xs.push(x + W); if (x > W - rx - 3) xs.push(x - W); // raccord de la couture
         for (const xx of xs) {
+          if (rect) { // rangée de tuiles rectangulaires (base de la coiffe)
+            const x0 = xx - odd, w = cpx, h = rhW * pxV;
+            g.fillStyle = '#34343a'; g.fillRect(x0 - 1, py - h / 2 - 1, w + 2, h + 2);
+            g.fillStyle = `rgb(${sh | 0},${sh | 0},${(sh + 3) | 0})`; g.fillRect(x0 + 1, py - h / 2 + 1, w - 2, h - 2);
+            k.fillStyle = 'rgb(70,70,70)'; k.fillRect(x0 - 1, py - h / 2 - 1, w + 2, h + 2);
+            k.fillStyle = 'rgb(190,190,190)'; k.fillRect(x0 + 1, py - h / 2 + 1, w - 2, h - 2);
+            q.fillStyle = `rgb(0,${rough},0)`; q.fillRect(x0 - 1, py - h / 2 - 1, w + 2, h + 2);
+            ir.fillStyle = 'rgb(0,128,0)'; ir.fillRect(x0 / 4 - 1, (py - h / 2) / 4 - 1, w / 4 + 2, h / 4 + 2);
+            continue;
+          }
           g.fillStyle = '#3b3b40'; hexPath(g, xx, py, rx + 1.2, ryp + 1.2); g.fill();
           g.fillStyle = `rgb(${sh | 0},${sh | 0},${(sh + 3) | 0})`; hexPath(g, xx, py, rx - 1, ryp - 1); g.fill();
+          // points de fixation blancs aux sommets
+          g.fillStyle = 'rgba(225,228,232,.85)';
+          for (const kk of [0, 1]) { const an = Math.PI / 6 + (kk * Math.PI) / 3; g.fillRect(xx + Math.cos(an) * (rx + 0.6) - 1.1, py + Math.sin(an) * (ryp + 0.6) - 1.1, 2.2, 2.2); }
           k.fillStyle = 'rgb(70,70,70)'; hexPath(k, xx, py, rx + 1.2, ryp + 1.2); k.fill();
           k.fillStyle = 'rgb(190,190,190)'; hexPath(k, xx, py, rx - 1, ryp - 1); k.fill();
           q.fillStyle = `rgb(0,${rough},0)`; hexPath(q, xx, py, rx + 1.2, ryp + 1.2); q.fill();
@@ -375,10 +409,69 @@ function hullTextures(o) {
     }
   }
 
+  /* panneaux noirs lisses (carénages des volets avant) et marquages blancs par-dessus */
+  (o.panels || []).forEach(([a0, a1, y0, y1]) => {
+    for (const sgn of [-1, 1]) {
+      const xa = X(sgn * a0), xb = X(sgn * a1), x0 = Math.min(xa, xb), w = Math.abs(xb - xa), p0 = Y(y1), p1 = Y(y0);
+      g.fillStyle = '#0c0c0f'; g.beginPath(); g.moveTo(x0, p0); g.lineTo(x0 + w, p0); g.lineTo(x0 + w, p1 - (sgn > 0 ? 0 : w * 0.5)); g.lineTo(x0, p1 - (sgn > 0 ? w * 0.5 : 0)); g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x0, p0, w, 2);
+      q.fillStyle = 'rgb(0,95,40)'; q.fillRect(x0, p0, w, p1 - p0);
+      k.fillStyle = 'rgb(150,150,150)'; k.fillRect(x0, p0, w, p1 - p0);
+      ir.fillStyle = 'rgb(0,128,0)'; ir.fillRect(x0 / 4, p0 / 4, w / 4, (p1 - p0) / 4);
+      for (let yy = p0 + 30; yy < p1 - w * 0.5; yy += 64) dotsRaw(g, x0 + 6, yy, x0 + w - 6, yy, 14, 1.6, 'rgba(255,255,255,.12)');
+    }
+  });
+  (o.panelMarks || []).forEach(([a, y, size, rot]) => {
+    const x = X(a), py = Y(y), s = size * pxV;
+    g.save(); g.translate(x, py); g.rotate(rot);
+    g.fillStyle = 'rgba(245,247,250,.96)'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `800 ${s | 0}px Archivo, "Arial Black", "Helvetica Neue", Arial, sans-serif`;
+    g.fillText('S42', 0, s * 0.12);
+    g.font = `700 ${(s * 0.3) | 0}px Archivo, "Helvetica Neue", Arial, sans-serif`;
+    g.fillText("DON'T PANIC", 0, -s * 0.58);
+    g.restore();
+  });
+
   const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace;
   const rm = new THREE.CanvasTexture(m), bump = new THREE.CanvasTexture(b), iri = new THREE.CanvasTexture(ic);
   [map, rm, bump, iri].forEach((t) => { t.wrapS = THREE.RepeatWrapping; t.anisotropy = o.aniso; });
   return { map, rm, bump, iri };
+}
+
+/* face inox des volets avant : panneaux rivetés, raidisseurs en éventail (motif losange), bord tuilé */
+function forwardFlapTextures(aniso) {
+  const W = 1024, H = 1440, X0 = 0.46, Y0 = -0.02, YS = 0.66;   // cadre en unités de forme
+  const c = cnv(W, H), g = c.getContext('2d'), b = cnv(W, H), k = b.getContext('2d'), r = rng(57);
+  const px = (x) => (x / X0) * W, py = (y) => (1 - (y - Y0) / YS) * H;
+  g.fillStyle = '#c4c8ce'; g.fillRect(0, 0, W, H); k.fillStyle = '#808080'; k.fillRect(0, 0, W, H);
+  // tôles rectangulaires
+  for (let y = 0; y < 0.66; y += 0.055) for (let x = 0; x < 0.46; x += 0.07) {
+    const t = 176 + r() * 30; g.fillStyle = `rgba(${t | 0},${(t + 3) | 0},${(t + 7) | 0},.7)`;
+    g.fillRect(px(x), py(y + 0.055), px(0.07), py(0) - py(0.055));
+  }
+  g.strokeStyle = 'rgba(60,62,68,.7)'; g.lineWidth = 2; k.strokeStyle = '#b8b8b8'; k.lineWidth = 4;
+  for (let y = 0; y < 0.66; y += 0.055) { for (const [ctx] of [[g], [k]]) { ctx.beginPath(); ctx.moveTo(0, py(y)); ctx.lineTo(W, py(y)); ctx.stroke(); } dotsRaw(g, 0, py(y) - 6, W, py(y) - 6, 12, 2.4, 'rgba(90,72,56,.75)'); }
+  for (let x = 0; x < 0.46; x += 0.07) { for (const [ctx] of [[g], [k]]) { ctx.beginPath(); ctx.moveTo(px(x), 0); ctx.lineTo(px(x), H); ctx.stroke(); } dotsRaw(g, px(x) + 6, 0, px(x) + 6, H, 12, 2.4, 'rgba(90,72,56,.75)'); }
+  // raidisseurs en éventail depuis la ferrure d'actionneur centrale → motif losange
+  const hx = px(0.27), hy = py(0.21);
+  g.lineWidth = 3; k.lineWidth = 7;
+  for (const [tx, ty] of [[0.02, 0.62], [0.45, 0.17], [0.44, -0.02], [0.02, 0.0], [0.03, 0.33], [0.45, 0.08]]) {
+    g.strokeStyle = 'rgba(70,72,80,.75)'; g.beginPath(); g.moveTo(hx, hy); g.lineTo(px(tx), py(ty)); g.stroke();
+    k.strokeStyle = '#d6d6d6'; k.beginPath(); k.moveTo(hx, hy); k.lineTo(px(tx), py(ty)); k.stroke();
+    dotsRaw(g, hx + 8, hy + 8, px(tx) + 8, py(ty) + 8, 12, 2.2, 'rgba(90,72,56,.7)');
+  }
+  // losange de la ferrure
+  g.fillStyle = '#8f949b'; g.beginPath(); g.moveTo(hx - 60, hy); g.lineTo(hx, hy - 34); g.lineTo(hx + 60, hy); g.lineTo(hx, hy + 34); g.closePath(); g.fill();
+  g.strokeStyle = 'rgba(40,40,46,.9)'; g.lineWidth = 3; g.stroke();
+  k.fillStyle = '#e8e8e8'; k.beginPath(); k.moveTo(hx - 60, hy); k.lineTo(hx, hy - 34); k.lineTo(hx + 60, hy); k.lineTo(hx, hy + 34); k.closePath(); k.fill();
+  // brossage + légère suie vers le bord d'attaque
+  for (let i = 0; i < 5000; i++) { const v = r() < 0.5 ? 255 : 0; g.fillStyle = `rgba(${v},${v},${v},${r() * 0.04})`; g.fillRect(r() * W, r() * H, 1, r() * 120); }
+  const gr = g.createLinearGradient(px(0.45), py(0.17), px(0.3), py(0.3));
+  gr.addColorStop(0, 'rgba(20,20,24,.5)'); gr.addColorStop(1, 'rgba(20,20,24,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+  const map = new THREE.CanvasTexture(c); map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = aniso;
+  const bump = new THREE.CanvasTexture(b);
+  for (const t of [map, bump]) { t.repeat.set(1 / X0, 1 / YS); t.offset.set(0, -Y0 / YS); }
+  return { map, bump };
 }
 
 /* ==================================================================
@@ -414,21 +507,29 @@ function buildShip(M, aniso) {
 
   // zone inox de la face avant : demi-largeur angulaire selon la hauteur (le reste est tuilé)
   const steelHalf = (y) => {
-    if (y < 4.12) return 1.06;
-    if (y < 4.62) return 1.06 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 4.12) / 0.5, 2.4))) - 0.04;
+    if (y < 4.2) return 1.0;
+    if (y < 4.74) return 1.0 * Math.sqrt(Math.max(0, 1 - Math.pow((y - 4.2) / 0.54, 4.5))) - 0.03;
     return -1;
   };
   const tex = hullTextures({
     W: 2048 * Q, H: 4096 * Q, len: SHIP_H, radius: shipRadius, vOf: arc.v, S: arc.S, seed: 3, aniso,
-    tiles: steelHalf, doublers: 12,
+    tiles: steelHalf, rectBand: [4.5, 4.82], doublers: 12,
+    panels: [[0.98, 1.36, 3.05, 4.32]],
+    panelMarks: [[-1.18, 3.62, 0.13, -Math.PI / 2], [1.18, 3.62, 0.13, -Math.PI / 2]],
     iriZones: [[2.9, 4.6, 1.0, 2.6], [1.6, 3.0, 0.7, 2.4], [0.2, 1.7, 0.45, 2.4]],
     slatBands: [[3.27, 0.06, 1.15], [2.31, 0.05, 1.15], [0.62, 0.06, 1.15]],
     oval: [3.61, 0.13, 0.8],
     ports: [[0.07, 3.475, 0.05, 'gold'], [-0.15, 3.49, 0.012, 'dark'], [-0.22, 3.49, 0.012, 'dark'],
       [-0.56, 2.55, 0.028, 'dark'], [0.52, 0.9, 0.028, 'dark'], [0.6, 2.95, 0.016, 'dark'], [-0.4, 1.4, 0.016, 'dark'],
-      [-0.42, 3.935, 0.05, 'tile'], [0.42, 3.935, 0.05, 'tile']],
+      [-0.42, 3.935, 0.05, 'tile'], [0.42, 3.935, 0.05, 'tile'],
+      [-0.52, 3.43, 0.034, 'dark'], [0.52, 3.43, 0.034, 'dark'],
+      [-0.6, 3.07, 0.013, 'dark'], [-0.53, 3.07, 0.013, 'dark'], [0.53, 3.07, 0.013, 'dark'], [0.6, 3.07, 0.013, 'dark'],
+      [-0.55, 2.17, 0.013, 'dark'], [0.55, 2.17, 0.013, 'dark'],
+      [-0.62, 2.06, 0.15, 'slot'], [0, 2.06, 0.15, 'slot'], [0.62, 2.06, 0.15, 'slot'],
+      [-0.62, 1.5, 0.15, 'slot'], [0, 1.5, 0.15, 'slot'], [0.62, 1.5, 0.15, 'slot'],
+      [0.6, 1.2, 0, 'vent'], [-0.6, 1.22, 0.1, 'grille'],
+      [-0.55, 0.37, 0.034, 'dark'], [0.55, 0.37, 0.034, 'dark']],
     logos: [[0.0, 3.935, 0.3], [0.0, 0.17, 0.26]],
-    marks: [[-0.95, 3.6, 0.12, Math.PI / 2], [0.95, 3.6, 0.12, -Math.PI / 2]],
   });
   const bodyMat = new THREE.MeshPhysicalMaterial({
     map: tex.map, roughnessMap: tex.rm, metalnessMap: tex.rm, bumpMap: tex.bump, bumpScale: 1.6,
@@ -440,7 +541,19 @@ function buildShip(M, aniso) {
   g.add(body);
 
   /* --- volets --- */
-  const flap = (shape, y, ang, depth, tilt, ribs = true) => {
+  const fwdTex = forwardFlapTextures(aniso);
+  const fwdMat = M.flapSteel.clone(); fwdMat.map = fwdTex.map; fwdMat.bumpMap = fwdTex.bump; fwdMat.bumpScale = 1.4; fwdMat.color.set(0xffffff);
+  const hingeBracket = (piv, y, front) => { // ferrure de charnière + vérin
+    const b = new THREE.Group();
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.022, 0.05), M.steel); b.add(plate);
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.11, 8), M.steel);
+    rod.rotation.z = Math.PI / 2; rod.position.set(0.05, 0.004, front * 0.022); b.add(rod);
+    const cyl = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.05, 10), M.dark);
+    cyl.rotation.z = Math.PI / 2; cyl.position.set(0.02, 0.004, front * 0.022); b.add(cyl);
+    const lug = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.012), M.steel); lug.position.set(0.1, 0.004, front * 0.022); b.add(lug);
+    b.position.set(0.0, y, front * 0.01); piv.add(b);
+  };
+  const flap = (shape, y, ang, depth, tilt, opts = {}) => {
     const s = new THREE.Shape(shape.map(([x, yy]) => new THREE.Vector2(x, yy)));
     const geo = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: true, bevelSize: 0.01, bevelThickness: 0.01, bevelSegments: 2 });
     geo.translate(0, 0, -depth / 2);
@@ -449,35 +562,36 @@ function buildShip(M, aniso) {
     piv.position.set(Math.sin(ang) * rr, y, Math.cos(ang) * rr);
     piv.rotation.set(0, ang - Math.PI / 2, tilt);
     piv.add(new THREE.Mesh(geo, M.tile));
-    // face sous le vent : inox irisé encadré de tuiles
-    const cx = shape.reduce((a, p) => a + p[0], 0) / shape.length, cy = shape.reduce((a, p) => a + p[1], 0) / shape.length;
-    const inner = new THREE.Shape(shape.map(([x, yy]) => new THREE.Vector2(cx + (x - cx) * 0.8 + 0.012, cy + (yy - cy) * 0.86)));
-    const plate = new THREE.Mesh(new THREE.ShapeGeometry(inner), M.flapSteel);
     const front = Math.cos(ang - Math.PI / 2) >= 0 ? 1 : -1;  // côté du volet qui regarde l'avant
-    plate.position.z = front * (depth / 2 + 0.0115);
-    piv.add(plate);
-    // nervures de la face inox
-    for (let i = 1; i < (ribs ? 4 : 0); i++) {
-      const rib = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, 0.004), M.dark);
-      const yy = cy + (i / 4 - 0.5) * 0.7 * (shape[shape.length - 1][1] - shape[0][1]);
-      rib.scale.x = 30; rib.position.set(cx + 0.012, yy, front * (depth / 2 + 0.013)); piv.add(rib);
+    const hh = Math.max(...shape.map((p) => p[1]));
+    if (opts.plate) { // face sous le vent : inox à panneaux, bordée par les tuiles du bord d'attaque
+      const inner = new THREE.Shape(opts.plate.map(([x, yy]) => new THREE.Vector2(x, yy)));
+      const pm = new THREE.Mesh(new THREE.ShapeGeometry(inner), fwdMat);
+      pm.position.z = front * (depth / 2 + 0.0115);
+      if (front < 0) { pm.scale.z = -1; }
+      piv.add(pm);
+      for (const f of [0.14, 0.5, 0.86]) hingeBracket(piv, hh * f, front);
     }
     // charnière + carénage d'actionneur tuilé le long de la racine
-    const hh = shape[shape.length - 1][1];
-    const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, hh * 0.9, 12), M.steel);
+    const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, hh * 0.92, 12), M.steel);
     hinge.position.set(0.0, hh * 0.48, 0); piv.add(hinge);
-    const fair = new THREE.Mesh(new THREE.CapsuleGeometry(0.034, hh * 0.55, 6, 16), M.tile);
-    fair.scale.set(0.7, 1, 1.15); fair.position.set(0.005, hh * 0.45, -front * 0.025); piv.add(fair);
+    const fr = opts.fairing || 0.034;
+    const fair = new THREE.Mesh(new THREE.CapsuleGeometry(fr, hh * (opts.fairLen || 0.55), 8, 20), M.tile);
+    fair.scale.set(0.75, 1, 1.15); fair.position.set(0.005, hh * (opts.fairY || 0.45), -front * fr * 0.7); piv.add(fair);
     g.add(piv);
     return piv;
   };
-  const fwd = [[0, 0], [0.19, 0.07], [0.235, 0.36], [0.17, 0.6], [0.02, 0.66], [0, 0.62]];
-  const aft = [[0, 0], [0.4, 0], [0.38, 0.62], [0.12, 1.28], [0, 1.32]];
-  const off = 0.22; // légèrement vers la face tuilée (−z)
-  const fy = 4.24, tiltF = Math.atan((shipRadius(fy) - shipRadius(fy + 0.62)) / 0.62);
+  // volets avant : grands volets en flèche, hauts sur la coiffe (bord d'attaque oblique, bord de fuite horizontal)
+  const fwd = [[0, 0], [0.44, -0.02], [0.455, 0.17], [0.03, 0.64], [0, 0.62]];
+  const fwdPlate = [[0.035, 0.03], [0.405, 0.015], [0.415, 0.15], [0.05, 0.555], [0.035, 0.55]];
+  // volets arrière : entièrement tuilés, gros carénage arrondi le long de la racine
+  const aft = [[0, 0], [0.36, 0], [0.34, 0.66], [0.1, 1.3], [0, 1.34]];
+  const fy = 4.13, tiltF = Math.atan((shipRadius(fy) - shipRadius(fy + 0.62)) / 0.62);
   g.userData.flaps = [
-    flap(fwd, fy, Math.PI / 2 + off, 0.03, tiltF), flap(fwd, fy, -Math.PI / 2 - off, 0.03, tiltF),
-    flap(aft, 0.08, Math.PI / 2 + off * 0.6, 0.042, 0, false), flap(aft, 0.08, -Math.PI / 2 - off * 0.6, 0.042, 0, false),
+    flap(fwd, fy, Math.PI / 2 + 0.14, 0.03, tiltF, { plate: fwdPlate, fairing: 0.03, fairLen: 0.6, fairY: 0.42 }),
+    flap(fwd, fy, -Math.PI / 2 - 0.14, 0.03, tiltF, { plate: fwdPlate, fairing: 0.03, fairLen: 0.6, fairY: 0.42 }),
+    flap(aft, 0.06, Math.PI / 2 + 0.13, 0.05, 0, { fairing: 0.07, fairLen: 0.95, fairY: 0.52 }),
+    flap(aft, 0.06, -Math.PI / 2 - 0.13, 0.05, 0, { fairing: 0.07, fairLen: 0.95, fairY: 0.52 }),
   ];
 
   /* --- deux conduites externes annelées sur la face avant --- */
