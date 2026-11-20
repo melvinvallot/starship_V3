@@ -156,8 +156,8 @@ body.paper .pt-light { color: #f2f2f0; }
 .intro, .pin { position: relative; z-index: 2; }
 .intro { padding: 14vh 0 18vh; }
 .intro .wrap { max-width: 1360px; }
-.reveal-words { font: 700 clamp(28px, 3.4vw, 52px)/1.1 var(--f-display); letter-spacing: -.03em; max-width: 20ch; margin: 0; text-wrap: balance; }
-.reveal-words .w { display: inline-block; opacity: .14; transition: opacity .2s; }
+.reveal-words { font: 700 clamp(26px, 3vw, 46px)/1.12 var(--f-display); letter-spacing: -.025em; max-width: 22ch; margin: 0; display: grid; gap: .55em; }
+.reveal-words .ln { display: block; text-wrap: balance; will-change: transform, opacity; }
 @media (max-width: 760px) { .intro { padding: 40vh 0 20vh; } .reveal-words { text-shadow: 0 2px 30px rgba(0,0,0,.9); } }
 .intro-grid { display: grid; gap: 56px; }
 .intro-grid > * { min-width: 0; max-width: 700px; }

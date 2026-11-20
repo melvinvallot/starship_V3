@@ -159,17 +159,20 @@
     scrollTrigger: { trigger: '#hero', start: 'top top', end: '45% top', scrub: true },
   });
 
-  /* ---------- Intro : révélation mot à mot ---------- */
-  const rw = $('#revealWords');
-  rw.innerHTML = rw.innerHTML.split(/(\s+)/).map((w) => (/^\s+$/.test(w) || !w ? w : `<span class="w">${w}</span>`)).join('');
-  const words = $$('.w', rw);
-  ScrollTrigger.create({
-    trigger: '#intro', start: 'top 70%', end: 'bottom 70%',
-    onUpdate: (s) => {
-      const n = s.progress * words.length * 1.15;
-      words.forEach((w, i) => (w.style.opacity = clamp(0.14 + (n - i) * 0.5, 0.14, 1)));
-    },
+  /* ---------- Intro : une phrase par ligne, révélées l'une après l'autre ---------- */
+  const lines = $$('#revealWords .ln');
+  const showLines = (p) => {
+    const n = p * (lines.length + 0.4);
+    lines.forEach((l, i) => {
+      const t = clamp((n - i) / 0.8);
+      l.style.opacity = t; l.style.transform = `translate3d(0,${(1 - t) * 28}px,0)`; l.style.filter = t > 0.99 ? 'none' : `blur(${(1 - t) * 6}px)`;
+    });
+  };
+  const linesST = ScrollTrigger.create({
+    trigger: '#intro', start: 'top 75%', end: 'center 45%',
+    onUpdate: (s) => showLines(s.progress), onRefresh: (s) => showLines(s.progress),
   });
+  showLines(linesST.progress);
 
   /* ---------- Anatomie ---------- */
   // [liste, titre, texte, étage, hauteur (m depuis la base), [[clé, valeur] × 3]]

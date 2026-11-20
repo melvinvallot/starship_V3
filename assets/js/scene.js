@@ -350,6 +350,7 @@ function frame() {
   T.ty = lerp(T.ty, BOOST_TOP + 2.75, shipOnly);
   T.d = lerp(T.d, 10.5 * (mobile ? 1.3 : 1), shipOnly);
   T.rot = lerp(T.rot, 0.35, shipOnly);
+  if (!mobile) T.shiftX += 0.09 * shipOnly; // un peu plus à droite, loin du texte
   T.hero = 1 - sstep(0.0, 0.55, heroP);
   T.atmo = 0; T.alt = 0; T.shipOnly = shipOnly;
   let stackY = -HALF, shipUp = 0, bDown = 0, bX = 0, bRotZ = 0, bFlame = 0, sFlame = 0, bbFlame = 0, hsGlow = 0, spread = 1, smokeOn = 0, shake = 0, stackRot = null;
