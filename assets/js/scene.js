@@ -275,7 +275,7 @@ const anatK = [
 ];
 
 /* ---------- état courant amorti ---------- */
-const cur = { ty: HALF, tx: 0, d: 25, e: 0, rot: 0, shiftX: 0, shiftY: 0, gap: 0.3, hero: 1, paper: 0, atmo: 0 };
+const cur = { shipOnly: 0, ty: HALF, tx: 0, d: 25, e: 0, rot: 0, shiftX: 0, shiftY: 0, gap: 0.3, hero: 1, paper: 0, atmo: 0 };
 let Dfull = 25, visScale = 1;
 function fitDistances() {
   const fov = camera.fov * Math.PI / 180;
@@ -345,8 +345,13 @@ function frame() {
   T.shiftX = mobile ? 0 : 0.2 * shiftOn;
   T.shiftY = mobile ? -0.17 * sstep(0.0, 0.03, anatP) : 0;
   T.gap = 0.3 * (1 - sstep(0.1, 0.8, introP));
+  // section « Le système » : gros plan sur le vaisseau seul, le booster sort par le bas
+  const shipOnly = sstep(0.05, 0.75, introP) * (1 - sstep(0.0, 0.07, anatP));
+  T.ty = lerp(T.ty, BOOST_TOP + 2.75, shipOnly);
+  T.d = lerp(T.d, 10.5 * (mobile ? 1.3 : 1), shipOnly);
+  T.rot = lerp(T.rot, 0.35, shipOnly);
   T.hero = 1 - sstep(0.0, 0.55, heroP);
-  T.atmo = 0; T.alt = 0;
+  T.atmo = 0; T.alt = 0; T.shipOnly = shipOnly;
   let stackY = -HALF, shipUp = 0, bDown = 0, bX = 0, bRotZ = 0, bFlame = 0, sFlame = 0, bbFlame = 0, hsGlow = 0, spread = 1, smokeOn = 0, shake = 0, stackRot = null;
 
   if (launchP > 0) {
@@ -392,7 +397,7 @@ function frame() {
   T.paper = (SS.paper || 0) * (1 - sstep(0, 0.35, heroP));
 
   // amortissement
-  for (const key of ['ty', 'd', 'e', 'rot', 'shiftX', 'shiftY', 'gap', 'hero', 'paper', 'atmo']) cur[key] += (T[key] - cur[key]) * (key === 'paper' || key === 'atmo' ? k * 0.6 : k);
+  for (const key of ['ty', 'd', 'e', 'rot', 'shiftX', 'shiftY', 'gap', 'hero', 'paper', 'atmo', 'shipOnly']) cur[key] += (T[key] - cur[key]) * (key === 'paper' || key === 'atmo' ? k * 0.6 : k);
   cur.alt = T.alt;
 
   /* ----- application ----- */
@@ -401,7 +406,8 @@ function frame() {
   stack.position.y = stackY + bob + introDrop;
   stack.rotation.y = cur.rot + (reduce ? 0 : SS.mx * 0.18 * cur.hero);
   shipPivot.position.y = BOOST_TOP + 2.6 + cur.gap + shipUp;
-  boosterPivot.position.set(bX, 3.6 - bDown, 0);
+  boosterPivot.position.set(bX, 3.6 - bDown - cur.shipOnly * 16, 0);
+  booster.visible = cur.shipOnly < 0.97;
   boosterPivot.rotation.z = bRotZ;
   shipPivot.rotation.z = -sstep(0.0, 1.0, clamp((launchP - 0.6) / 0.4)) * 0.12;
 
