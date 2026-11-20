@@ -58,6 +58,16 @@ function concreteTexture() {
   g.fillStyle = gr; g.fillRect(0, 0, S, S);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
+function terrainTexture() {
+  // estran de Boca Chica : sable, herbe rase, flaques d'eau, pistes
+  const S = 1024, c = cnv(S, S), g = c.getContext('2d'), r = rng(57);
+  g.fillStyle = '#5a5546'; g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 260; i++) { const x = r() * S, y = r() * S, rad = 20 + r() * 120; const gr = g.createRadialGradient(x, y, 0, x, y, rad); const k = r();
+    const col = k < 0.35 ? '74,78,58' : k < 0.6 ? '110,100,80' : k < 0.8 ? '60,58,50' : '58,70,78';
+    gr.addColorStop(0, `rgba(${col},.55)`); gr.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2); }
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(70,84,92,${0.3 + r() * 0.3})`; g.beginPath(); g.ellipse(r() * S, r() * S, 10 + r() * 50, 4 + r() * 18, r() * 3, 0, Math.PI * 2); g.fill(); }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(60, 60); t.anisotropy = 8; return t;
+}
 function fadeTex(k) {
   const c = cnv(256, 256), g = c.getContext('2d');
   const gr = g.createRadialGradient(128, 128, 0, 128, 128, 128);
@@ -288,10 +298,12 @@ export function createPad(opts = {}) {
      ================================================================== */
   const site = new THREE.Group(); pad.add(site);
   const cTex = concreteTexture();
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshStandardMaterial({ map: cTex, color: 0x8a847c, roughness: 0.95, metalness: 0, transparent: true, alphaMap: fadeTex(0.8) }));
-  ground.rotation.x = -Math.PI / 2; ground.position.set(opts.olmX || 0, 0.004, 0); site.add(ground);
-  const soil = new THREE.Mesh(new THREE.CircleGeometry(80, 64), new THREE.MeshStandardMaterial({ color: 0x3b3833, roughness: 1, metalness: 0, transparent: true, depthWrite: false, alphaMap: fadeTex(0.35) }));
-  soil.rotation.x = -Math.PI / 2; soil.position.set(opts.olmX || 0, -0.002, 0); soil.renderOrder = -1; site.add(soil);
+  // dalle béton (au-dessus, décalage de profondeur : pas de scintillement) + terrain côtier jusqu'à l'horizon
+  const groundG = new THREE.Group(); site.add(groundG);
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(9, 64), new THREE.MeshStandardMaterial({ map: cTex, color: 0x8a847c, roughness: 0.95, metalness: 0, transparent: true, alphaMap: fadeTex(0.8), depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+  ground.rotation.x = -Math.PI / 2; ground.position.set(opts.olmX || 0, 0.03, 0); ground.renderOrder = 1; groundG.add(ground);
+  const soil = new THREE.Mesh(new THREE.CircleGeometry(1400, 96), new THREE.MeshStandardMaterial({ map: terrainTexture(), color: 0xffffff, roughness: 1, metalness: 0 }));
+  soil.rotation.x = -Math.PI / 2; soil.position.set(opts.olmX || 0, 0, 0); groundG.add(soil);
 
   // table de lancement (OLM) : anneau sur six pieds, à la position de la fusée
   const olm = new THREE.Group(); olm.position.x = opts.olmX || 0; site.add(olm);
@@ -339,7 +351,7 @@ export function createPad(opts = {}) {
   /* ---------- API ---------- */
   let armOpen = 1, armY = 12.6;
   pad.userData = {
-    tower, site, carriage, arms, M,
+    tower, site, carriage, arms, M, ground: groundG,
     // ouverture des bras (0 = fermés sur le vaisseau, 1 = grands ouverts)
     setArms(open, y) {
       armOpen = open; armY = y;
