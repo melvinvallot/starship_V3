@@ -47,6 +47,7 @@
     intro: ScrollTrigger.create({ trigger: '#intro', start: 'top bottom', end: 'bottom bottom' }),
     anat: ScrollTrigger.create({ trigger: '#anatomie', start: 'top top', end: 'bottom bottom' }),
     launch: ScrollTrigger.create({ trigger: '#lancement', start: 'top top', end: 'bottom bottom' }),
+    ret: ScrollTrigger.create({ trigger: '#retour', start: 'top top', end: 'bottom bottom' }),
     post: ScrollTrigger.create({ trigger: '.marquee', start: 'top bottom', end: 'bottom top' }),
   };
 
@@ -311,6 +312,49 @@
     }
     if (c && !c[2] && p < 0.02) callout.style.opacity = clamp(p / 0.02);
   }
+
+  /* ---------- Retour : rentrée, bascule, capture par la tour ---------- */
+  const retCallouts = [
+    [0.05, 0.18, 'Rentrée', 'Plasma à plus de 1 400 °C sous le bouclier'],
+    [0.18, 0.3, 'Chute à plat', 'Freinage sur le ventre, les volets pilotent'],
+    [0.3, 0.42, 'Bascule', 'Rallumage de 3 Raptor'],
+    [0.42, 0.64, 'Approche', 'Cap sur la tour'],
+    [0.64, 0.745, 'Fermeture', 'Les bras se referment'],
+    [0.745, 0.86, 'Capture', 'Posé sur les bras de la tour'],
+  ];
+  const rC = $('#retCallout'), rTxt = $('#retTxt'), rSub = $('#retSub');
+  const rAlt = $('#rtAlt'), rSpd = $('#rtSpd'), rAtt = $('#rtAtt'), rArm = $('#rtArm'), rShip = $('#rtShip');
+  const sm = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t); };
+  let lastRet = '';
+  function updRet(p) {
+    $('#retHead').style.opacity = 1 - clamp((p - 0.01) / 0.05);
+    $('#retHead').style.transform = `translateY(${-clamp((p - 0.01) / 0.05) * 40}px)`;
+    $('#retTele').style.opacity = clamp((p - 0.04) / 0.04) * (1 - clamp((p - 0.86) / 0.04));
+    const card = $('#retCard');
+    const cv = clamp((p - 0.88) / 0.05);
+    card.style.opacity = cv; card.style.pointerEvents = cv > 0.5 ? 'auto' : 'none';
+    card.style.translate = `0 ${(1 - cv) * 30}px`;
+    // télémétrie simulée
+    let alt, spd;
+    if (p < 0.3) { const k = p / 0.3; alt = 80000 * Math.pow(1500 / 80000, k); spd = 24000 * Math.pow(300 / 24000, Math.pow(k, 0.8)); }
+    else { const k = clamp((p - 0.3) / 0.445); alt = 1500 - (1500 - 120) * sm(0, 1, k) ; spd = 300 * (1 - sm(0, 1, k)) + (p < 0.745 ? 4 : 0); }
+    if (p >= 0.745) { alt = 120; spd = 0; }
+    rAlt.textContent = alt >= 10000 ? fmt(alt / 1000) + ' km' : alt >= 1000 ? fmt(alt / 1000, 1) + ' km' : fmt(alt) + ' m';
+    rSpd.textContent = fmt(spd) + ' km/h';
+    const pitch = SS.retPitch ? SS.retPitch(p) : 0;
+    rAtt.textContent = fmt(Math.abs(pitch) * 180 / Math.PI) + '°';
+    rShip.style.transform = `rotate(${-pitch * 180 / Math.PI}deg)`;
+    rArm.textContent = p < 0.64 ? 'Ouverts' : p < 0.745 ? 'Fermeture' : 'Fermés';
+    let c = null;
+    for (const cc of retCallouts) if (p >= cc[0] && p < cc[1]) c = cc;
+    const key = c ? c[2] : '';
+    if (key !== lastRet) {
+      lastRet = key;
+      if (c) { rTxt.textContent = c[2]; rSub.textContent = c[3]; gsap.fromTo(rC, { opacity: 0, y: 30, filter: 'blur(10px)' }, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'expo.out', overwrite: true }); }
+      else gsap.to(rC, { opacity: 0, y: -20, duration: 0.4, overwrite: true });
+    }
+  }
+  ScrollTrigger.create({ trigger: '#retour', start: 'top top', end: 'bottom bottom', onUpdate: (s) => updRet(s.progress), onRefresh: (s) => updRet(s.progress) });
 
   /* ---------- Bandeau défilant (accélère avec la vitesse de scroll) ---------- */
   const mq = $('#marquee');
