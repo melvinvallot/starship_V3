@@ -27,13 +27,13 @@
     lenis.stop();
   }
   const scrollTo = (target, opts = {}) => {
-    if (lenis) lenis.scrollTo(target, { duration: 1.6, ...opts });
+    if (lenis) lenis.scrollTo(target, { immediate: true, force: true, ...opts }); // saut instantané
     else {
       const y = typeof target === 'number' ? target : (typeof target === 'string' ? $(target) : target).getBoundingClientRect().top + scrollY;
       scrollTo0(y);
     }
   };
-  const scrollTo0 = (y) => window.scrollTo({ top: y, behavior: reduce ? 'auto' : 'smooth' });
+  const scrollTo0 = (y) => window.scrollTo({ top: y, behavior: 'auto' });
   $$('[data-scroll]').forEach((a) => a.addEventListener('click', (e) => {
     const id = a.getAttribute('href');
     if (!id || id[0] !== '#') return;
@@ -481,7 +481,7 @@
     gsap.from(h, { yPercent: 30, opacity: 0, duration: 1.2, ease: 'expo.out', scrollTrigger: { trigger: h, start: 'top 85%', toggleActions: 'play none none reverse' } });
   });
   gsap.from('.final-title span', { backgroundPosition: '200% 0', duration: 2, ease: 'expo.out', scrollTrigger: { trigger: '#final', start: 'top 60%' } });
-  $('#toTop').addEventListener('click', () => scrollTo(0, { duration: 3 }));
+  $('#toTop').addEventListener('click', () => scrollTo(0));
 
   /* ---------- Mars (sphère texturée procédurale, 2D) ---------- */
   const mc = $('#mars');

@@ -92,14 +92,14 @@ sky.renderOrder = -10;
 scene.add(sky);
 
 /* étoiles */
-const STARS = 3200;
+const STARS = 11000;
 const starG = new THREE.BufferGeometry();
 {
   const r = rng(11), pos = new Float32Array(STARS * 3), sz = new Float32Array(STARS), ph = new Float32Array(STARS);
   for (let i = 0; i < STARS; i++) {
     const u = r() * 2 - 1, a = r() * Math.PI * 2, s = Math.sqrt(1 - u * u);
     pos.set([Math.cos(a) * s * 1200, u * 1200, Math.sin(a) * s * 1200], i * 3);
-    sz[i] = Math.pow(r(), 6) * 3.2 + 0.6; ph[i] = r() * 100;
+    sz[i] = Math.pow(r(), 5) * 3.4 + 0.7; ph[i] = r() * 100;
   }
   starG.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   starG.setAttribute('aSize', new THREE.BufferAttribute(sz, 1));
@@ -259,69 +259,6 @@ const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight 
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
-/* ---------- annotations du hero ---------- */
-const annots = [
-  ['Coiffe', 'Nose cone', ship, [0.12, 4.95, 0.12], 'r'],
-  ['Soute', 'Payload bay', ship, [0.44, 3.55, 0.1], 'r'],
-  ['Volets arrière', 'Aft flaps', ship, [0.75, 0.75, 0], 'r'],
-  ['Anneau de hot staging', 'Hot-staging ring', booster, [0.45, BOOST_TOP - 0.1, 0.05], 'r'],
-  ['Premier étage', 'First stage', booster, [0.45, 4.6, 0.05], 'r'],
-  ['33 × Raptor 3', 'Engines', booster, [0.28, -0.2, 0.1], 'r'],
-  ['Volets avant', 'Forward flaps', ship, [-0.62, 4.5, 0], 'l'],
-  ['Second étage', 'Second stage', ship, [-0.45, 2.4, 0.05], 'l'],
-  ['6 × Raptor 3', 'Dans la jupe', ship, [-0.25, -0.15, 0.1], 'l'],
-  ['Grid fins', 'Grilles de pilotage', booster, [-0.72, 6.78, 0.1], 'l'],
-  ['Chines', 'Profilés latéraux', booster, [-0.5, 3.6, 0.05], 'l'],
-];
-const annotSvg = document.getElementById('annotSvg');
-const annotLabels = document.getElementById('annotLabels');
-const annotEl = document.getElementById('annot');
-const aItems = annots.map(([t, s, obj, p, side]) => {
-  const el = document.createElement('div'); el.className = 'alabel ' + side;
-  el.innerHTML = `<small>${s}</small>${t}`; annotLabels.appendChild(el);
-  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); annotSvg.appendChild(path);
-  const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); dot.setAttribute('r', '2'); annotSvg.appendChild(dot);
-  return { el, path, dot, obj, p: new THREE.Vector3(...p), side, w: 0, h: 0, sy: 0 };
-});
-function measureAnnots() { aItems.forEach((a) => { a.w = a.el.offsetWidth; a.h = a.el.offsetHeight; }); }
-measureAnnots();
-if (document.fonts) document.fonts.ready.then(measureAnnots);
-const tmpV = new THREE.Vector3();
-function updateAnnots(op, t) {
-  annotEl.style.opacity = op;
-  if (op <= 0.001 || innerWidth < 761) return;
-  const W = innerWidth, H = innerHeight;
-  // centre et largeur de la fusée à l'écran
-  const c0 = tmpV.set(0, HALF, 0); stack.localToWorld(c0); c0.project(camera);
-  const cx = (c0.x * 0.5 + 0.5) * W;
-  const e = tmpV.set(R, HALF, 0); stack.localToWorld(e); e.project(camera);
-  const halfW = Math.abs((e.x * 0.5 + 0.5) * W - cx);
-  const colOff = Math.max(halfW + 70, Math.min(W * 0.16, 260));
-  const sides = { l: [], r: [] };
-  aItems.forEach((a, i) => {
-    tmpV.copy(a.p); a.obj.localToWorld(tmpV); tmpV.project(camera);
-    a.ax = (tmpV.x * 0.5 + 0.5) * W; a.ay = (-tmpV.y * 0.5 + 0.5) * H;
-    a.sy = a.ay; sides[a.side].push(a);
-  });
-  Object.values(sides).forEach((arr) => { // évite les chevauchements
-    arr.sort((a, b) => a.sy - b.sy);
-    for (let i = 1; i < arr.length; i++) if (arr[i].sy < arr[i - 1].sy + 34) arr[i].sy = arr[i - 1].sy + 34;
-  });
-  aItems.forEach((a, i) => {
-    const ly = a.sy - 14;
-    const reveal = clamp((t - 0.9 - i * 0.08) / 0.6);
-    const lx = a.side === 'r' ? cx + colOff : cx - colOff - a.w;
-    a.el.style.transform = `translate3d(${lx}px,${ly}px,0)`;
-    a.el.style.opacity = reveal;
-    const ex = a.side === 'r' ? lx - 8 : lx + a.w + 8, ey = a.sy - 2;
-    const mx = a.side === 'r' ? ex - 18 : ex + 18;
-    const d = `M${ex} ${ey} L${mx} ${ey} C${(mx + a.ax) / 2} ${ey} ${(mx + a.ax) / 2} ${a.ay} ${a.ax} ${a.ay}`;
-    a.path.setAttribute('d', d);
-    const L = 400; a.path.style.strokeDasharray = L; a.path.style.strokeDashoffset = L * (1 - reveal);
-    a.dot.setAttribute('cx', a.ax); a.dot.setAttribute('cy', a.ay); a.dot.style.opacity = reveal;
-  });
-}
-
 /* ---------- étapes de l'anatomie (cible locale y, distance, élévation, rotation) ---------- */
 const anatK = [
   { y: HALF, d: null, e: 0.0, r: 0.0 },                  // vue d'ensemble
@@ -360,7 +297,7 @@ function onResize() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight, false); composer.setSize(innerWidth, innerHeight);
   bloom.resolution.set(innerWidth / 2, innerHeight / 2);
-  fitDistances(); measureAnnots();
+  fitDistances();
 }
 addEventListener('resize', onResize);
 
@@ -389,7 +326,6 @@ function frame() {
   // révélation initiale (après le loader)
   const rv = SS.revealAt ? clamp((performance.now() - SS.revealAt) / 2600) : 0;
   const rvE = 1 - Math.pow(1 - rv, 4);
-  const revealT = SS.revealAt ? (performance.now() - SS.revealAt) / 1000 : 0;
 
   /* ----- cible caméra ----- */
   let T = {};
@@ -536,7 +472,6 @@ function frame() {
   sun.color.setRGB(1, lerp(0.89, 0.7, cur.atmo), lerp(0.77, 0.5, cur.atmo));
 
   composer.render();
-  updateAnnots(cur.hero * (1 - sstep(0.0, 0.12, heroP)) * (SS.revealAt ? 1 : 0) * (1 - cur.paper * 0), revealT);
 }
 
 // rendu d'amorçage (compile les shaders avant la fin du loader)
