@@ -261,7 +261,7 @@ composer.addPass(new OutputPass());
 
 /* ---------- étapes de l'anatomie (cible locale y, distance, élévation, rotation) ---------- */
 const anatK = [
-  { y: HALF, d: null, e: 0.0, r: 0.0 },                  // vue d'ensemble
+  { y: BOOST_TOP + 2.75, d: 10.5, e: 0.0, r: 0.35 },     // vue d'ensemble : même gros plan que « Le système », sans recul
   { y: BOOST_TOP + 4.75, d: 4.2, e: 0.12, r: 0.5 },       // coiffe
   { y: BOOST_TOP + 4.45, d: 4.4, e: 0.05, r: -1.0 },      // volets avant
   { y: BOOST_TOP + 3.4, d: 4.8, e: 0.0, r: 0.12 },        // soute
