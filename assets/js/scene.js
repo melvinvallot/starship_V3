@@ -289,69 +289,134 @@ function makePlume(rTop, rBot, len, core = 1.2, k = 1) {
 }
 
 /* ---------- fumée et vapeur du décollage ---------- */
-function smokeTexture(seed) { // volutes « chou-fleur » : bruit fractal + éclairage par le haut
-  const S = 192, c = cnv(S, S), g = c.getContext('2d'), r = rng(seed);
-  const N = 32, grid = new Float32Array(N * N).map(() => r());
+function smokeTexture(seed, lumps) {
+  // volumes « chou-fleur » : union de sphères bosselées, éclairées en relief.
+  // R = lumière du ciel (par le haut), G = lueur du feu (par en dessous), A = densité
+  const S = 320, r = rng(seed), N = 32, grid = new Float32Array(N * N).map(() => r());
   const vn = (x, y) => {
     const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
     const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
     const q = (i, j) => grid[((j & (N - 1)) * N) + (i & (N - 1))];
     return (q(xi, yi) * (1 - u) + q(xi + 1, yi) * u) * (1 - v) + (q(xi, yi + 1) * (1 - u) + q(xi + 1, yi + 1) * u) * v;
   };
-  const fbm = (x, y) => { let t = 0, a = 0.55, f = 1; for (let o = 0; o < 5; o++) { t += a * Math.abs(vn(x * f, y * f) * 2 - 1); a *= 0.5; f *= 2.03; } return t; };
-  const D = new Float32Array(S * S);
-  const ox = r() * 50, oy = r() * 50;
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const dx = (x - S / 2) / (S / 2), dy = (y - S / 2) / (S / 2), d = Math.sqrt(dx * dx + dy * dy * 1.15);
-    const n = fbm(x / 26 + ox, y / 26 + oy);
-    D[y * S + x] = Math.max(0, Math.min(1, (1 - d * 1.05) * 1.9 + (n - 0.55) * 1.6));
+  const fbm = (x, y) => { let t = 0, am = 0.5, f = 1; for (let o = 0; o < 4; o++) { t += am * vn(x * f, y * f); am *= 0.5; f *= 2.1; } return t; };
+  const B = [];
+  for (let i = 0; i < lumps; i++) { // dôme : grosses boules en bas, petites boules qui bourgeonnent en haut
+    const yy = -0.55 + Math.pow(r(), 0.8) * 1.0;            // -0.55 (bas) .. 0.45 (haut)
+    const wHalf = 0.62 - (yy + 0.55) * 0.32;
+    const xx = (r() * 2 - 1) * wHalf;
+    const rad = (0.06 + r() * 0.12) * (1.2 - (yy + 0.55) * 0.5);
+    B.push([xx, yy, rad]);
   }
-  const img = g.createImageData(S, S), px = img.data;
-  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
-    const i = y * S + x, d = D[i];
-    const up = D[Math.max(0, y - 5) * S + x], dn = D[Math.min(S - 1, y + 5) * S + x];
-    const lit = Math.max(0, Math.min(1, 0.62 + (dn - up) * 1.4 - (y / S - 0.5) * 0.35));
-    const v = Math.round(255 * (0.3 + 0.7 * lit));
-    px[i * 4] = v; px[i * 4 + 1] = v; px[i * 4 + 2] = Math.round(v * 0.98);
-    px[i * 4 + 3] = Math.round(255 * Math.pow(d, 1.25));
+  const data = new Uint8Array(S * S * 4);
+  const Ls = [-0.35, 0.72, 0.6], Lf = [0.1, -0.85, 0.5];
+  const nl = (v) => { const l = Math.hypot(v[0], v[1], v[2]); return [v[0] / l, v[1] / l, v[2] / l]; };
+  const LS = nl(Ls), LF = nl([0, -1, 0.22]);
+  for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
+    const x = (px / S) * 2 - 1, y = 1 - (py / S) * 2;
+    let best = -1, bi = -1, sum = 0;
+    for (let k = 0; k < B.length; k++) {
+      const dx = x - B[k][0], dy = y - B[k][1], rr = B[k][2] * B[k][2] - dx * dx - dy * dy;
+      if (rr > 0) { const h = Math.sqrt(rr); sum += h; if (h > best) { best = h; bi = k; } }
+    }
+    const i = (py * S + px) * 4;
+    if (bi < 0) { data[i + 3] = 0; continue; }
+    const b0 = B[bi], n0 = fbm(px / 9 + seed, py / 9), n1 = fbm(px / 4 + 40, py / 4 + seed);
+    best -= (n0 - 0.45) * 0.045; if (best <= 0) { data[i + 3] = 0; continue; }
+    // normale de la sphère + petites bosses
+    let nx = (x - b0[0]) / b0[2] + (n0 - 0.5) * 1.5 + (n1 - 0.5) * 0.8, ny = (y - b0[1]) / b0[2] + (n1 - 0.5) * 1.5, nz = best / b0[2];
+    const ln = Math.hypot(nx, ny, nz); nx /= ln; ny /= ln; nz /= ln;
+    const ao = 0.45 + 0.55 * Math.min(1, best / b0[2] * 1.6) * (0.75 + 0.25 * Math.min(1, sum * 2));
+    const sun = Math.max(0, nx * LS[0] + ny * LS[1] + nz * LS[2]) * ao;
+    const fire = Math.max(0, nx * LF[0] + ny * LF[1] + nz * LF[2]) * ao * (0.6 + 0.4 * (1 - (y + 1) / 2));
+    const e0 = Math.min(1, best / 0.045); const edge = e0 * e0 * (3 - 2 * e0) * (0.92 + 0.08 * n0);
+    data[i] = Math.round(255 * Math.min(1, sun * (0.85 + 0.3 * n1)));
+    data[i + 1] = Math.round(255 * Math.min(1, fire * (0.85 + 0.3 * n0)));
+    data[i + 2] = Math.round(255 * ao);
+    data[i + 3] = Math.round(255 * edge);
   }
-  g.putImageData(img, 0, 0);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  const t = new THREE.DataTexture(data, S, S, THREE.RGBAFormat);
+  t.flipY = false; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
+  t.needsUpdate = true; return t;
 }
-const smokeTexs = [smokeTexture(5), smokeTexture(17), smokeTexture(29)];
+const smokeTexs = [smokeTexture(5, 110), smokeTexture(17, 90), smokeTexture(29, 130), smokeTexture(41, 80)];
+function wispTexture(seed) { // voile de vapeur étiré verticalement
+  const S = 128, r = rng(seed), N = 32, grid = new Float32Array(N * N).map(() => r());
+  const vn = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const q = (i, j) => grid[((j & (N - 1)) * N) + (i & (N - 1))];
+    return (q(xi, yi) * (1 - u) + q(xi + 1, yi) * u) * (1 - v) + (q(xi, yi + 1) * (1 - u) + q(xi + 1, yi + 1) * u) * v;
+  };
+  const data = new Uint8Array(S * S * 4);
+  for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
+    const x = px / S * 2 - 1, y = py / S * 2 - 1;
+    let n = 0, am = 0.5, f = 1;
+    for (let o = 0; o < 5; o++) { n += am * vn(px / 10 * f, py / 34 * f); am *= 0.5; f *= 2; }
+    const m = Math.max(0, 1 - x * x) * Math.max(0, 1 - y * y);
+    const d = Math.max(0, Math.min(1, (n - 0.32) * 2.4)) * m;
+    const i = (py * S + px) * 4;
+    data[i] = Math.round(255 * (0.55 + 0.45 * n)); data[i + 1] = 110; data[i + 2] = 255; data[i + 3] = Math.round(255 * d);
+  }
+  const t = new THREE.DataTexture(data, S, S, THREE.RGBAFormat);
+  t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t;
+}
+const wispTexs = [wispTexture(3), wispTexture(11)];
 const PAD_Y = -HALF - 0.35;
+const smokeVS = `uniform float uFlip; varying vec2 vUv;
+  void main(){
+    vUv = vec2(mix(uv.x, 1. - uv.x, uFlip), 1. - uv.y);
+    vec4 mv = modelViewMatrix * vec4(0., 0., 0., 1.);
+    vec2 sc = vec2(length(modelMatrix[0].xyz), length(modelMatrix[1].xyz));
+    mv.xy += position.xy * sc;
+    gl_Position = projectionMatrix * mv;
+  }`;
+const smokeFS = `uniform sampler2D uMap; uniform float uOp; uniform vec3 uSun, uFire, uAmb; varying vec2 vUv;
+  void main(){
+    vec4 t = texture2D(uMap, vUv);
+    float low = smoothstep(.15, .95, vUv.y);
+    vec3 c = uAmb * (.4 + .6 * t.b) + uSun * t.r + uFire * t.g * (.25 + .75 * low) * (.5 + .5 * low);
+    gl_FragColor = vec4(c, t.a * uOp);
+  }`;
 const smoke = new THREE.Group(); scene.add(smoke);
 const puffs = [];
-for (let i = 0; i < 380; i++) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTexs[i % 3], transparent: true, depthWrite: false, opacity: 0, color: 0x888888 }));
-  s.userData = { life: 0, max: 1, v: new THREE.Vector3(), alive: false, kind: 0, s0: 1, s1: 5, shade: 1, spin: 0 };
+for (let i = 0; i < 420; i++) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uMap: { value: smokeTexs[i % 4] }, uOp: { value: 0 }, uFlip: { value: i % 2 }, uSun: { value: new THREE.Color() }, uFire: { value: new THREE.Color() }, uAmb: { value: new THREE.Color() } },
+    vertexShader: smokeVS, fragmentShader: smokeFS, transparent: true, depthWrite: false,
+  });
+  const s = new THREE.Sprite(m);
+  s.userData = { life: 0, max: 1, v: new THREE.Vector3(), alive: false, kind: 0, s0: 1, s1: 5, shade: 1, k: 1 };
   s.visible = false;
   smoke.add(s); puffs.push(s);
 }
 const sr = rng(77);
 const tmpS = new THREE.Vector3();
-function spawnGround(s, k) { // nuages qui roulent sur le pas de tir
-  const a = sr() * Math.PI * 2, sp = 1.5 + sr() * 4.5, u = s.userData;
-  s.position.set(Math.cos(a) * 0.5, PAD_Y + sr() * 0.5, Math.sin(a) * 0.5 - 0.4);
-  u.v.set(Math.cos(a) * sp, 0.15 + sr() * 1.1, Math.sin(a) * sp * 0.35 - 0.6);
-  u.life = 0; u.max = 4 + sr() * 5; u.alive = true; u.k = k; u.kind = 0; u.s0 = 1.1; u.s1 = 5 + sr() * 6;
-  u.shade = 0.22 + sr() * 0.45; u.spin = (sr() - 0.5) * 0.3; s.material.rotation = sr() * 6.28; s.visible = true;
+function spawnGround(s, k) { // nuages épais qui roulent hors du pas de tir
+  const a = Math.PI * (sr() < 0.5 ? 0.02 + sr() * 0.3 : 0.68 + sr() * 0.3) + (sr() < 0.25 ? Math.PI : 0), sp = 2 + sr() * 5, u = s.userData;
+  s.position.set(Math.cos(a) * 0.6, PAD_Y + 0.2 + sr() * 0.4, Math.sin(a) * 0.4 - 0.6);
+  u.v.set(Math.cos(a) * sp, 0.1 + sr() * 0.8, Math.sin(a) * sp * 0.3 - 0.5);
+  s.material.uniforms.uMap.value = smokeTexs[(sr() * 4) | 0];
+  u.life = 0; u.max = 5 + sr() * 6; u.alive = true; u.k = 0.6 + 0.4 * k; u.kind = 0; u.s0 = 1.6 + sr(); u.s1 = 5 + sr() * 6;
+  u.shade = 0.75 + sr() * 0.5; s.visible = true;
 }
-function spawnFrost(s, k) { // givre et vapeur qui ruissellent le long du booster
-  const a = (sr() - 0.5) * 2.6, u = s.userData; // surtout côté caméra
-  tmpS.set(Math.sin(a) * (R + 0.04), 0.4 + sr() * 6.2, Math.cos(a) * (R + 0.04)); booster.localToWorld(tmpS);
+function spawnFrost(s, k) { // vapeur de givre qui ruisselle le long du booster
+  const a = (sr() - 0.5) * 2.8, u = s.userData;
+  tmpS.set(Math.sin(a) * (R + 0.02), 0.2 + sr() * 6.6, Math.cos(a) * (R + 0.02)); booster.localToWorld(tmpS);
   s.position.copy(tmpS);
-  u.v.set(Math.sin(a) * 0.12, -0.5 - sr() * 0.7, Math.cos(a) * 0.12);
-  u.life = 0; u.max = 1.4 + sr() * 1.6; u.alive = true; u.k = k * 0.7; u.kind = 2; u.s0 = 0.12 + sr() * 0.1; u.s1 = 0.5 + sr() * 0.5;
-  u.shade = 0.9 + sr() * 0.1; u.spin = (sr() - 0.5) * 0.4; s.material.rotation = sr() * 6.28; s.visible = true;
+  u.v.set(Math.sin(a) * 0.1, -0.6 - sr() * 0.8, Math.cos(a) * 0.1);
+  s.material.uniforms.uMap.value = wispTexs[(sr() * 2) | 0];
+  u.life = 0; u.max = 1.6 + sr() * 1.8; u.alive = true; u.k = k * 0.85; u.kind = 2; u.s0 = 0.2 + sr() * 0.12; u.s1 = 0.6 + sr() * 0.6;
+  u.shade = 0.85 + sr() * 0.15; s.visible = true;
 }
-function spawnShroud(s, k) { // vapeur qui enveloppe les moteurs et forme la traînée
-  const a = sr() * Math.PI * 2, r = R * (0.9 + sr() * 0.7), u = s.userData;
-  tmpS.set(Math.cos(a) * r, -0.7 + sr() * 0.9, Math.sin(a) * r - 0.15); booster.localToWorld(tmpS);
+function spawnShroud(s, k) { // vapeur blanche dense qui enveloppe les moteurs
+  const a = sr() * Math.PI * 2, r = R * (0.95 + sr() * 0.45), u = s.userData;
+  tmpS.set(Math.cos(a) * r, -0.9 + sr() * 1.3, Math.sin(a) * r); booster.localToWorld(tmpS);
   s.position.copy(tmpS);
-  u.v.set(Math.cos(a) * (0.3 + sr() * 0.9), -0.8 - sr() * 1.8, Math.sin(a) * (0.3 + sr() * 0.9));
-  u.life = 0; u.max = 2.2 + sr() * 3; u.alive = true; u.k = k; u.kind = 1; u.s0 = 0.3 + sr() * 0.25; u.s1 = 1.0 + sr() * 1.2;
-  u.shade = 0.8 + sr() * 0.2; u.spin = (sr() - 0.5) * 0.5; s.material.rotation = sr() * 6.28; s.visible = true;
+  u.v.set(Math.cos(a) * (0.4 + sr() * 0.9), -1.2 - sr() * 2.2, Math.sin(a) * (0.4 + sr() * 0.9) * 0.6);
+  s.material.uniforms.uMap.value = smokeTexs[(sr() * 4) | 0];
+  u.life = 0; u.max = 1.8 + sr() * 2.2; u.alive = true; u.k = k; u.kind = 1; u.s0 = 0.35 + sr() * 0.25; u.s1 = 1.1 + sr() * 1.3;
+  u.shade = 0.9 + sr() * 0.1; s.visible = true;
 }
 
 /* ---------- le « 3 » chromé et le mot Starship ---------- */
@@ -864,13 +929,14 @@ function frame() {
   }
 
   // fumée et vapeur
-  const groundOn = smokeOn * (1 - sstep(4, 10, stackY + HALF));
-  const shroudOn = bFlame * (1 - sstep(0.24, 0.36, launchP));
+  const groundOn = smokeOn * (1 - sstep(4, 12, stackY + HALF));
+  const shroudOn = bFlame * (1 - sstep(0.26, 0.38, launchP));
   if (groundOn > 0.01 || shroudOn > 0.01 || puffs.some((q) => q.userData.alive)) {
-    let nG = groundOn > 0.01 && Math.random() < 0.3 + groundOn * 0.5 ? 1 : 0;
-    let nS = shroudOn > 0.01 && Math.random() < 0.6 ? 1 : 0;
-    let nF = shroudOn > 0.01 && Math.random() < 0.6 ? 1 : 0;
+    let nG = groundOn > 0.01 && Math.random() < 0.35 + groundOn * 0.6 ? 1 : 0;
+    let nS = shroudOn > 0.01 ? (Math.random() < 0.7 ? 1 : 0) : 0;
+    let nF = shroudOn > 0.01 ? (Math.random() < 0.8 ? 1 : 0) : 0;
     const bottomY = bw.y - 3.6;
+    const sunK = 0.82 + 0.18 * cur.atmo;
     for (const s of puffs) {
       const u = s.userData;
       if (!u.alive) {
@@ -881,22 +947,36 @@ function frame() {
       }
       u.life += dt;
       const t = u.life / u.max;
-      if (t >= 1) { u.alive = false; s.visible = false; s.material.opacity = 0; continue; }
-      u.v.multiplyScalar(1 - dt * (u.kind ? 0.9 : 0.35)); u.v.y += dt * (u.kind === 1 ? 0.25 : u.kind === 2 ? -0.2 : 0.1);
+      if (t >= 1) { u.alive = false; s.visible = false; s.material.uniforms.uOp.value = 0; continue; }
+      u.v.multiplyScalar(1 - dt * (u.kind ? 0.9 : 0.4));
+      u.v.y += dt * (u.kind === 1 ? 0.3 : u.kind === 2 ? -0.15 : 0.18);
       s.position.addScaledVector(u.v, dt);
-      const sc = u.s0 + (u.s1 - u.s0) * (1 - Math.pow(1 - t, 2)); s.scale.set(sc, sc, 1);
-      s.material.opacity = Math.min(1, t * 6) * (1 - Math.pow(t, 1.6)) * (u.kind === 0 ? 0.7 : u.kind === 1 ? 0.5 : 0.45) * u.k * clamp((s.position.distanceTo(camera.position) - 2.5) / 5) * (mobile ? 0.6 : 1);
-      // lumière du soleil couchant + lueur orange des moteurs par en dessous
-      let near = Math.exp(-Math.abs(s.position.y - bottomY + 0.6) * 0.55) * bFlame;
-      if (u.kind === 0) near = Math.max(near, bFlame * Math.exp(-Math.max(0, s.position.y - PAD_Y) * 0.22) * 1.5 * (1 - t * 0.6));
-      if (u.kind === 2) near *= 0.3;
-      const sunW = u.shade * (0.82 + 0.18 * cur.atmo);
-      const keep = 1 - Math.min(0.6, near * 0.45);
-      s.material.color.setRGB(
-        sunW * 0.96 * keep + near * 1.25,
-        sunW * 0.9 * keep + near * 0.5,
-        sunW * 0.86 * keep + near * 0.12);
-      s.material.rotation += dt * u.spin;
+      if (u.kind === 0 && s.position.y < PAD_Y + 0.3) s.position.y = PAD_Y + 0.3;
+      const sc = u.s0 + (u.s1 - u.s0) * (1 - Math.pow(1 - t, 2.2)); s.scale.set(sc, sc * (u.kind === 2 ? 1.7 : 0.92), 1);
+      const camF = clamp((s.position.distanceTo(camera.position) - 2.2) / 4.5) * (mobile ? 0.7 : 1);
+      const op = Math.min(1, t * 8) * (1 - Math.pow(t, 3)) * (u.kind === 0 ? 1 : u.kind === 1 ? 0.95 : 0.4 * (1 - 0.5 * closeUp)) * u.k * camF;
+      const U = s.material.uniforms; U.uOp.value = op;
+      // lueur du feu : très forte près des moteurs et du sol, s'éteint quand le nuage vieillit et monte
+      const dB = Math.abs(s.position.y - bottomY + 0.4);
+      let fire = Math.exp(-dB * 0.45) * bFlame;
+      if (u.kind === 0) fire = Math.max(fire, bFlame * Math.exp(-Math.max(0, s.position.y - PAD_Y) * 0.8) * Math.exp(-Math.abs(s.position.x) * 0.07) * 2.4) * (1 - t * 0.55);
+      if (u.kind === 0) { // nuages de sol : sommets sombres en contre-jour, dessous orange incandescent
+        const g = u.shade * sunK;
+        U.uSun.value.setRGB(0.2 * g, 0.165 * g, 0.14 * g);
+        const core = bFlame * Math.exp(-Math.abs(s.position.x) * 0.45) * Math.exp(-Math.max(0, s.position.y - PAD_Y) * 0.7) * (1 - t);
+        U.uAmb.value.setRGB(0.03 * g + 2.2 * core, 0.026 * g + 0.75 * core, 0.026 * g + 0.1 * core);
+        U.uFire.value.setRGB(2.5 * fire, 0.78 * fire, 0.1 * fire);
+      } else if (u.kind === 1) { // vapeur des moteurs : blanc dense, teinté rose-orangé par les flammes
+        const g = u.shade * sunK;
+        U.uSun.value.setRGB(1.0 * g, 0.97 * g, 0.95 * g);
+        U.uAmb.value.setRGB(0.42 * g, 0.42 * g, 0.48 * g);
+        U.uFire.value.setRGB(1.6 * fire, 0.75 * fire, 0.45 * fire);
+      } else { // givre : voile blanc-beige le long de la coque
+        const g = u.shade * sunK;
+        U.uSun.value.setRGB(0.85 * g, 0.8 * g, 0.75 * g);
+        U.uAmb.value.setRGB(0.3 * g, 0.29 * g, 0.3 * g);
+        U.uFire.value.setRGB(0.9 * fire, 0.4 * fire, 0.15 * fire);
+      }
     }
   }
 
