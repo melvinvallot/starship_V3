@@ -102,7 +102,7 @@
   $$('button', mBox).forEach((b) => b.addEventListener('click', () => setMission(b.dataset.k)));
 
   /* --- état --- */
-  let W = 0, H = 0, dpr = 1, visible = false, scrollP = 0, auto = null, lastPhase = '';
+  let frameN = 0, W = 0, H = 0, dpr = 1, visible = false, scrollP = 0, auto = null, lastPhase = '';
   let stars = [], clouds = null, cloudPat = null, sats = [];
   const rnd = (() => { let s = 11; return () => ((s = (s * 16807) % 2147483647) / 2147483647); })();
 
@@ -159,17 +159,18 @@
     const slotU = [0.56, 0.69];
     const x0 = mob ? W * 0.5 - L * 0.62 : W * 0.5 - L * 0.46;
     const X = (u) => x0 + u * L;
-    return { L, D, cy, x0, X, top: cy - D / 2, bot: cy + D / 2, slot: { x: X(slotU[0]), w: X(slotU[1]) - X(slotU[0]), y: cy - D * 0.2, h: D * 0.3 }, mob };
+    return { L, D, cy, x0, X, top: cy - D / 2, bot: cy + D / 2, slot: { x: X(slotU[0]), w: X(slotU[1]) - X(slotU[0]), y: cy + D * 0.01, h: D * 0.24 }, mob };
   }
 
+  // silhouette du vaisseau : même profil que le modèle 3D (rocket.js, shipRadius)
   function hullPath(g) {
-    const { X, top, bot, cy, D } = g;
+    const { X, cy, D } = g, C = 3.75 / 5.21;
+    const rad = (u) => (u <= C ? 1 : Math.pow(Math.max(0, 1 - Math.pow((u - C) / (1 - C), 1.9)), 0.62));
     const p = new Path2D();
-    p.moveTo(X(0.02), top);
-    p.lineTo(X(0.79), top);
-    p.bezierCurveTo(X(0.9), top, X(0.985), cy - D * 0.2, X(1), cy);
-    p.bezierCurveTo(X(0.985), cy + D * 0.2, X(0.9), bot, X(0.79), bot);
-    p.lineTo(X(0.02), bot);
+    p.moveTo(X(0.005), cy - D / 2);
+    for (let i = 0; i <= 40; i++) { const u = C + (1 - C) * (i / 40); p.lineTo(X(u), cy - (D / 2) * rad(u)); }
+    for (let i = 40; i >= 0; i--) { const u = C + (1 - C) * (i / 40); p.lineTo(X(u), cy + (D / 2) * rad(u)); }
+    p.lineTo(X(0.005), cy + D / 2);
     p.closePath();
     return p;
   }
@@ -204,9 +205,65 @@
     ctx.restore();
   }
 
+  function drawSlot(g, door, remaining) {
+    const { slot } = g;
+    // fente du distributeur : intérieur sombre éclairé
+    const ig = ctx.createLinearGradient(0, slot.y, 0, slot.y + slot.h);
+    ig.addColorStop(0, '#020203'); ig.addColorStop(0.5, '#0d0f13'); ig.addColorStop(1, '#030304');
+    ctx.fillStyle = ig; ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
+    if (door > 0.05) {
+      const lg = ctx.createRadialGradient(slot.x + slot.w / 2, slot.y + slot.h * 0.2, 0, slot.x + slot.w / 2, slot.y + slot.h * 0.2, slot.w * 0.6);
+      lg.addColorStop(0, `rgba(255,220,170,${0.25 * door})`); lg.addColorStop(1, 'rgba(255,220,170,0)');
+      ctx.fillStyle = lg; ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
+      // le prochain satellite sur son rail
+      if (remaining > 0) {
+        ctx.fillStyle = 'rgba(120,124,132,.55)';
+        ctx.fillRect(slot.x + slot.w * 0.06, slot.y + slot.h * 0.55, slot.w * 0.88, slot.h * 0.18);
+        ctx.fillStyle = 'rgba(201,164,106,.5)';
+        ctx.fillRect(slot.x + slot.w * 0.06, slot.y + slot.h * 0.86, slot.w * 0.88, 2);
+      }
+    }
+    // porte coulissante (glisse vers le nez)
+    const dx = slot.x + door * slot.w * 1.04;
+    const dg = ctx.createLinearGradient(0, slot.y, 0, slot.y + slot.h);
+    dg.addColorStop(0, '#d5d9df'); dg.addColorStop(0.55, '#9aa0a8'); dg.addColorStop(1, '#5d626a');
+    ctx.fillStyle = dg; ctx.fillRect(dx, slot.y - 2, slot.w, slot.h + 4);
+    ctx.strokeStyle = 'rgba(30,32,36,.7)'; ctx.strokeRect(dx + 0.5, slot.y - 1.5, slot.w - 1, slot.h + 3);
+    ctx.strokeStyle = 'rgba(20,22,26,.8)'; ctx.strokeRect(slot.x - 0.5, slot.y - 2.5, slot.w + 1, slot.h + 5);
+  }
+
+  function drawBay(g, remaining) {
+    const { X, top, D } = g;
+    // vue « rayons X » de la soute : la pile de satellites restants
+    const bx0 = X(0.44), bx1 = X(0.7);
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    ctx.setLineDash([3, 4]); ctx.strokeStyle = '#c9a46a'; ctx.lineWidth = 1;
+    ctx.strokeRect(bx0, top + D * 0.08, bx1 - bx0, D * 0.36);
+    ctx.setLineDash([]);
+    const n = sats.length, lw = (bx1 - bx0 - 12) / Math.max(n, 1);
+    for (let i = 0; i < remaining; i++) {
+      const x = bx0 + 6 + (i + 0.5) * lw;
+      ctx.fillStyle = 'rgba(201,164,106,.75)';
+      ctx.fillRect(x - Math.max(1, lw * 0.3), top + D * 0.12, Math.max(1.5, lw * 0.6), D * 0.28);
+    }
+    ctx.restore();
+  }
+
   function drawShip(g, door, remaining, t) {
     const { X, top, bot, cy, D, L, slot } = g;
     const hull = hullPath(g);
+    const m = window.SS && SS.deployShip;
+    if (m) {
+      // vrai modèle 3D (inox irisé, tuiles, volets, marquages), rendu hors écran
+      const r = m.render(L, dpr, frameN++ < 90);
+      ctx.drawImage(r.canvas, X(0) - r.ox * r.s, cy - r.hy * r.s, r.canvas.width / dpr, r.canvas.height / dpr);
+      ctx.save(); ctx.clip(hull);
+      drawSlot(g, door, remaining);
+      ctx.restore();
+      drawBay(g, remaining);
+      return hull;
+    }
     // moteurs (3 Raptor vide + 3 au niveau de la mer, vus de profil)
     ctx.fillStyle = '#1a1b1f';
     const bell = (yc, len, r) => {
@@ -243,29 +300,7 @@
     sh.addColorStop(0, 'rgba(0,0,0,0)'); sh.addColorStop(0.9, 'rgba(0,0,0,.25)'); sh.addColorStop(1, 'rgba(0,0,0,.6)');
     ctx.fillStyle = sh; ctx.fillRect(X(0), top, L, D);
 
-    // fente du distributeur : intérieur sombre éclairé
-    const ig = ctx.createLinearGradient(0, slot.y, 0, slot.y + slot.h);
-    ig.addColorStop(0, '#020203'); ig.addColorStop(0.5, '#0d0f13'); ig.addColorStop(1, '#030304');
-    ctx.fillStyle = ig; ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
-    if (door > 0.05) {
-      const lg = ctx.createRadialGradient(slot.x + slot.w / 2, slot.y + slot.h * 0.2, 0, slot.x + slot.w / 2, slot.y + slot.h * 0.2, slot.w * 0.6);
-      lg.addColorStop(0, `rgba(255,220,170,${0.25 * door})`); lg.addColorStop(1, 'rgba(255,220,170,0)');
-      ctx.fillStyle = lg; ctx.fillRect(slot.x, slot.y, slot.w, slot.h);
-      // le prochain satellite sur son rail
-      if (remaining > 0) {
-        ctx.fillStyle = 'rgba(120,124,132,.55)';
-        ctx.fillRect(slot.x + slot.w * 0.06, slot.y + slot.h * 0.55, slot.w * 0.88, slot.h * 0.18);
-        ctx.fillStyle = 'rgba(201,164,106,.5)';
-        ctx.fillRect(slot.x + slot.w * 0.06, slot.y + slot.h * 0.86, slot.w * 0.88, 2);
-      }
-    }
-    // porte coulissante (glisse vers le nez)
-    const dx = slot.x + door * slot.w * 1.04;
-    const dg = ctx.createLinearGradient(0, slot.y, 0, slot.y + slot.h);
-    dg.addColorStop(0, '#a9aeb5'); dg.addColorStop(1, '#787d84');
-    ctx.fillStyle = dg; ctx.fillRect(dx, slot.y - 2, slot.w, slot.h + 4);
-    ctx.strokeStyle = 'rgba(30,32,36,.7)'; ctx.strokeRect(dx + 0.5, slot.y - 1.5, slot.w - 1, slot.h + 3);
-    ctx.strokeStyle = 'rgba(20,22,26,.8)'; ctx.strokeRect(slot.x - 0.5, slot.y - 2.5, slot.w + 1, slot.h + 5);
+    drawSlot(g, door, remaining);
     ctx.restore();
 
     // ailerons (flaps) avant et arrière
@@ -277,20 +312,7 @@
     flap(0.06, 0.2, true, false); flap(0.06, 0.2, false, true);
     flap(0.8, 0.88, true, false); flap(0.8, 0.88, false, true);
 
-    // vue « rayons X » de la soute : la pile de satellites restants
-    const bx0 = X(0.44), bx1 = X(0.78);
-    ctx.save();
-    ctx.globalAlpha = 0.55;
-    ctx.setLineDash([3, 4]); ctx.strokeStyle = '#c9a46a'; ctx.lineWidth = 1;
-    ctx.strokeRect(bx0, top + D * 0.08, bx1 - bx0, D * 0.36);
-    ctx.setLineDash([]);
-    const n = sats.length, lw = (bx1 - bx0 - 12) / Math.max(n, 1);
-    for (let i = 0; i < remaining; i++) {
-      const x = bx0 + 6 + (i + 0.5) * lw;
-      ctx.fillStyle = 'rgba(201,164,106,.75)';
-      ctx.fillRect(x - Math.max(1, lw * 0.3), top + D * 0.12, Math.max(1.5, lw * 0.6), D * 0.28);
-    }
-    ctx.restore();
+    drawBay(g, remaining);
     return hull;
   }
 
