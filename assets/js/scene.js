@@ -933,8 +933,7 @@ function frame() {
   const shroudOn = bFlame * (1 - sstep(0.26, 0.38, launchP));
   if (groundOn > 0.01 || shroudOn > 0.01 || puffs.some((q) => q.userData.alive)) {
     let nG = groundOn > 0.01 && Math.random() < 0.35 + groundOn * 0.6 ? 1 : 0;
-    let nS = shroudOn > 0.01 ? (Math.random() < 0.7 ? 1 : 0) : 0;
-    let nF = shroudOn > 0.01 ? (Math.random() < 0.8 ? 1 : 0) : 0;
+    let nS = 0, nF = 0; // petites bouffées et filets de givre retirés : seuls les grands nuages du sol restent
     const bottomY = bw.y - 3.6;
     const sunK = 0.82 + 0.18 * cur.atmo;
     for (const s of puffs) {
