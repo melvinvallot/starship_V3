@@ -37,6 +37,7 @@
     <a href="#mission" data-scroll>Mission</a>
     <a href="#echelle" data-scroll>Échelle</a>
     <a href="#versions" data-scroll>Versions</a>
+    <a href="#vols" data-scroll>Missions</a>
   </nav>
   <div class="nav-clock"><span class="dot"></span><span>T+ <b id="clock">00:00:00</b></span></div>
   <div class="nav-progress"><i id="navProgress"></i></div>
@@ -50,6 +51,8 @@
   <a href="#mission" data-scroll data-rail="mission"><i></i><span>Mission</span></a>
   <a href="#echelle" data-scroll data-rail="echelle"><i></i><span>Échelle</span></a>
   <a href="#versions" data-scroll data-rail="versions"><i></i><span>Versions</span></a>
+  <a href="#vols" data-scroll data-rail="vols"><i></i><span>Missions</span></a>
+  <a href="#largage" data-scroll data-rail="largage"><i></i><span>Largage</span></a>
 </aside>
 
 <div id="cursor" aria-hidden="true"><i></i><span id="cursorTxt">000 · 000</span></div>
@@ -187,7 +190,7 @@
 
 <!-- ============ BANDEAU ============ -->
 <div class="marquee" aria-hidden="true"><div class="marquee-track" id="marquee">
-  <span>Starbase · Texas</span><span>25.997° N 97.157° O</span><span>Acier inoxydable</span><span>Méthane + oxygène liquide</span><span>39 moteurs Raptor 3</span><span>Capture par la tour</span><span>Ravitaillement en orbite</span><span>Lune · Mars</span>
+  <span>Starbase · Texas</span><span>25.997° N 97.157° O</span><span>Acier inoxydable</span><span>Méthane + oxygène liquide</span><span>39 moteurs Raptor 3</span><span>Capture par la tour</span><span>Ravitaillement en orbite</span><span>Starlink V3 en orbite</span>
 </div></div>
 
 <!-- ============ RAPTOR 3 ============ -->
@@ -283,17 +286,59 @@
   </div>
 </section>
 
+<!-- ============ VOLS RÉELS ============ -->
+<section id="vols" class="solid vols">
+  <div class="wrap">
+    <p class="eyebrow">Missions réelles · 2023 – 2026</p>
+    <h2 class="vols-title">Quinze vols.<br><span>Pas une maquette.</span></h2>
+    <p class="lead narrow">Chaque vol d'essai de Starship depuis Starbase, au Texas : ce qu'il emportait, ce qu'il a largué, et ce que sont devenus le booster et le vaisseau.</p>
+    <dl class="vols-stats" id="volsStats">
+      <div><dt>Vols d'essai</dt><dd data-count="15">0</dd></div>
+      <div><dt>Satellites et simulateurs largués</dt><dd data-count="110">0</dd></div>
+      <div><dt>Starlink V3 placés en orbite</dt><dd data-count="52">0</dd></div>
+      <div><dt>Boosters rattrapés par la tour</dt><dd data-count="3">0</dd></div>
+    </dl>
+    <div class="tabs vols-tabs" role="tablist" id="volsTabs">
+      <button role="tab" type="button" data-f="all" aria-selected="true">Tous</button>
+      <button role="tab" type="button" data-f="payload" aria-selected="false">Avec largage</button>
+      <button role="tab" type="button" data-f="catch" aria-selected="false">Captures</button>
+      <i class="tab-ink" id="volsInk"></i>
+    </div>
+    <ol class="vols-grid" id="volsGrid"></ol>
+    <p class="fine">Sources : Wikipédia (« List of Starship launches », pages des vols 12 et 15), NPR, Space.com, SpacePolicyOnline. Masses arrondies, telles que publiées.</p>
+  </div>
+</section>
+
+<!-- ============ DÉMONSTRATION DE LARGAGE ============ -->
+<section id="largage" class="pin largage">
+  <div class="sticky">
+    <canvas id="deployCv" aria-hidden="true"></canvas>
+    <div class="dp-head wrap">
+      <p class="eyebrow">Démonstration · largage en orbite</p>
+      <h2>Le distributeur «&nbsp;PEZ&nbsp;»</h2>
+      <p class="dp-phase" id="dpPhase">Les satellites sont empilés à plat dans la soute. Faites défiler pour ouvrir la porte.</p>
+    </div>
+    <div class="dp-missions" role="tablist" aria-label="Choisir un vol" id="dpMissions"></div>
+    <div class="dp-hud wrap">
+      <div class="dp-stat"><span class="eyebrow">Largués</span><b id="dpCount">0</b><small id="dpTotal">/ 26</small></div>
+      <div class="dp-stat"><span class="eyebrow">Horloge du vol</span><b id="dpClock">—</b><small id="dpClockNote"></small></div>
+      <div class="dp-stat"><span class="eyebrow">Trajectoire</span><b id="dpOrbit">Orbite</b><small id="dpOrbitNote"></small></div>
+      <button class="btn dp-play" type="button" id="dpPlay"><span>Lancer le largage</span><i>▶</i></button>
+    </div>
+    <div class="dp-progress"><i id="dpBar"></i></div>
+  </div>
+</section>
+
 <!-- ============ FINAL ============ -->
 <section id="final" class="solid final">
-  <canvas id="mars" width="560" height="560" aria-hidden="true"></canvas>
   <div class="wrap final-copy">
-    <p class="eyebrow">Destination</p>
-    <h2 class="final-title">Prochain arrêt&nbsp;:<br><span>Mars.</span></h2>
-    <p class="lead narrow">Un vaisseau ravitaillé en orbite, réutilisable, capable d'emporter plus de 100 tonnes. Starship V3 est l'étape qui rend le voyage envisageable.</p>
+    <p class="eyebrow">Vol 15 · 13–14 novembre 2026</p>
+    <h2 class="final-title">Le vaisseau<br><span>est revenu.</span></h2>
+    <p class="lead narrow">Après 14 orbites et plus de 22 heures de vol, le Ship 42 a été rattrapé par les bras de la tour du pas de tir 2. Une première pour un étage supérieur revenu de l'orbite.</p>
     <button class="btn" type="button" id="toTop"><span>Revenir au pas de tir</span><i>↑</i></button>
   </div>
   <footer class="foot">
-    <p>Site conceptuel non officiel, inspiré de l'affiche « Limited 02 · Starship V3 » d'Arte Collective. Starship est un véhicule développé par SpaceX. Modèle 3D et télémétrie simulés.</p>
+    <p>Site conceptuel non officiel, inspiré de l'affiche « Limited 02 · Starship V3 » d'Arte Collective. Starship est un véhicule développé par SpaceX. Modèle 3D, télémétrie et animation de largage simulés à partir de données publiques.</p>
   </footer>
 </section>
 
@@ -309,6 +354,7 @@
 } }
 </script>
 <script src="assets/js/app.js"></script>
+<script src="assets/js/missions.js"></script>
 <script type="module" src="assets/js/scene.js"></script>
 </body>
 </html>

@@ -142,7 +142,7 @@
   /* ---------- Progression, rail, nav active ---------- */
   const navBar = $('#navProgress');
   ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => (navBar.style.transform = `scaleX(${s.progress})`) });
-  ['hero', 'anatomie', 'lancement', 'raptor', 'mission', 'echelle', 'versions'].forEach((id) => {
+  ['hero', 'anatomie', 'lancement', 'raptor', 'mission', 'echelle', 'versions', 'vols', 'largage'].forEach((id) => {
     ScrollTrigger.create({
       trigger: '#' + id, start: 'top 55%', end: 'bottom 55%',
       onToggle: (s) => {
@@ -484,76 +484,8 @@
     gsap.from(h, { yPercent: 30, opacity: 0, duration: 1.2, ease: 'expo.out', scrollTrigger: { trigger: h, start: 'top 85%', toggleActions: 'play none none reverse' } });
   });
   gsap.from('.final-title span', { backgroundPosition: '200% 0', duration: 2, ease: 'expo.out', scrollTrigger: { trigger: '#final', start: 'top 60%' } });
+  SS.scrollTo = scrollTo;
   $('#toTop').addEventListener('click', () => scrollTo(0));
-
-  /* ---------- Mars (sphère texturée procédurale, 2D) ---------- */
-  const mc = $('#mars');
-  const mctx = mc.getContext('2d');
-  const TW = 512, TH = 256;
-  const tex = new Float32Array(TW * TH * 3);
-  (function buildMars() {
-    let seed = 7;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const G = 64, gr = Array.from({ length: (G + 1) * (G / 2 + 1) }, rnd);
-    const vn = (x, y, s) => {
-      const gx = (x * s) % G, gy = Math.min(G / 2 - 0.001, y * s * 0.5);
-      const ix = Math.floor(gx), iy = Math.floor(gy), fx = gx - ix, fy = gy - iy;
-      const at = (a, b) => gr[(b % (G / 2 + 1)) * (G + 1) + (a % G)];
-      const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
-      return (at(ix, iy) * (1 - sx) + at(ix + 1, iy) * sx) * (1 - sy) + (at(ix, iy + 1) * (1 - sx) + at(ix + 1, iy + 1) * sx) * sy;
-    };
-    for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++) {
-      const u = x / TW * G, v = y / TH * G / 2;
-      let n = 0, a = 0.5, f = 0.25;
-      for (let o = 0; o < 6; o++) { n += vn(u * f * 4, v * f * 4, 1) * a; a *= 0.5; f *= 2; }
-      const lat = Math.abs(y / TH - 0.5) * 2;
-      const sm = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t * (3 - 2 * t); };
-      const dark = 1 - sm(0.42, 0.62, n) * 0.42 - (n - 0.4) * 0.25;
-      let r = 0.78 * dark, g = 0.36 * dark, b = 0.2 * dark;
-      const vall = Math.abs(y / TH - 0.53) < 0.012 && x > TW * 0.3 && x < TW * 0.55 ? 0.6 : 1; // Valles Marineris
-      r *= vall; g *= vall; b *= vall;
-      if (lat > 0.88) { const k = clamp((lat - 0.88) / 0.06); r += (0.95 - r) * k; g += (0.9 - g) * k; b += (0.88 - b) * k; }
-      const i3 = (y * TW + x) * 3; tex[i3] = r; tex[i3 + 1] = g; tex[i3 + 2] = b;
-    }
-  })();
-  const S = 400; mc.width = mc.height = S;
-  const img = mctx.createImageData(S, S);
-  let marsVisible = false, rotM = 0;
-  new IntersectionObserver((e) => (marsVisible = e[0].isIntersecting)).observe(mc);
-  const L = [-0.55, -0.35, 0.76];
-  function drawMars() {
-    const d = img.data, R = S / 2 - 8;
-    for (let py = 0; py < S; py++) for (let px = 0; px < S; px++) {
-      const i = (py * S + px) * 4;
-      const nx = (px - S / 2) / R, ny = (py - S / 2) / R, rr = nx * nx + ny * ny;
-      if (rr > 1.06) { d[i + 3] = 0; continue; }
-      if (rr > 1) { // atmosphère
-        const k = 1 - (rr - 1) / 0.06; d[i] = 255; d[i + 1] = 150; d[i + 2] = 100; d[i + 3] = 70 * k * k; continue;
-      }
-      const nz = Math.sqrt(1 - rr);
-      // inclinaison de l'axe
-      const tilt = 0.44, cy = Math.cos(tilt), sy = Math.sin(tilt);
-      const yy = ny * cy - nz * sy, zz = ny * sy + nz * cy;
-      const lon = Math.atan2(nx, zz) + rotM, lat = Math.asin(clamp(yy, -1, 1));
-      let u = ((lon / (2 * Math.PI)) % 1 + 1) % 1, v = lat / Math.PI + 0.5;
-      const fx = u * TW, fy = Math.min(TH - 1.001, v * TH);
-      const x0 = Math.floor(fx) % TW, x1 = (x0 + 1) % TW, y0 = Math.floor(fy), y1 = Math.min(TH - 1, y0 + 1), ax = fx - Math.floor(fx), ay = fy - y0;
-      const s00 = (y0 * TW + x0) * 3, s10 = (y0 * TW + x1) * 3, s01 = (y1 * TW + x0) * 3, s11 = (y1 * TW + x1) * 3;
-      const smp = (o) => (tex[s00 + o] * (1 - ax) + tex[s10 + o] * ax) * (1 - ay) + (tex[s01 + o] * (1 - ax) + tex[s11 + o] * ax) * ay;
-      const cr = smp(0), cg = smp(1), cb = smp(2);
-      let lam = nx * L[0] + ny * L[1] + nz * L[2];
-      lam = clamp(lam * 1.15 + 0.06);
-      const lim = Math.pow(1 - nz, 3) * 0.5;
-      d[i] = clamp(cr * lam + lim * 0.9 * lam) * 255;
-      d[i + 1] = clamp(cg * lam + lim * 0.45 * lam) * 255;
-      d[i + 2] = clamp(cb * lam + lim * 0.3 * lam) * 255;
-      d[i + 3] = 255;
-    }
-    mctx.putImageData(img, 0, 0);
-  }
-  drawMars();
-  gsap.ticker.add(() => { if (!marsVisible) return; rotM += reduce ? 0 : 0.0025; drawMars(); });
-  gsap.fromTo('#mars', { yPercent: -35, scale: 0.85 }, { yPercent: -60, scale: 1.05, ease: 'none', scrollTrigger: { trigger: '#final', start: 'top bottom', end: 'bottom bottom', scrub: true } });
 
   addEventListener('resize', () => ScrollTrigger.refresh());
   addEventListener('load', () => ScrollTrigger.refresh());
