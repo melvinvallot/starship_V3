@@ -184,6 +184,69 @@ const fireLight = new THREE.PointLight(0xff8a3a, 0, 40, 1.6); scene.add(fireLigh
 const stageLight = new THREE.PointLight(0xffa060, 0, 18, 1.8); scene.add(stageLight);
 const ventGlow = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); const gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,230,200,1)'); gr.addColorStop(0.25, 'rgba(255,150,60,.6)'); gr.addColorStop(1, 'rgba(255,90,20,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); const t = new THREE.CanvasTexture(c); const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); scene.add(sp); return sp; })();
 
+/* ---------- 33 Raptor : positions, tuyères incandescentes, panaches individuels ---------- */
+const ENG = [];
+[[3, 0.075, 0], [10, 0.215, 0.3], [20, 0.375, 0.15]].forEach(([c, rr, rot]) => {
+  for (let i = 0; i < c; i++) { const a = (i / c) * Math.PI * 2 + rot; ENG.push([Math.cos(a) * rr, Math.sin(a) * rr]); }
+});
+const NOISE_GLSL = `float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+  float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
+    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }`;
+const engOrder = new THREE.InstancedBufferAttribute(new Float32Array(ENG.map((_, i) => i / ENG.length)), 1);
+function placeEngines(mesh, y) {
+  const M = new THREE.Matrix4();
+  ENG.forEach(([x, z], i) => { M.makeTranslation(x, y, z); mesh.setMatrixAt(i, M); });
+  mesh.geometry.setAttribute('aOrder', engOrder);
+  mesh.frustumCulled = false;
+}
+// séquence d'allumage : centre, puis anneau intérieur, puis extérieur
+const ENG_ON = `float on = smoothstep(aOrder * .8, aOrder * .8 + .2, uStart) * uInt;`;
+
+/* intérieur des tuyères : or pâle à la sortie, orange vers le col */
+const bellInMat = new THREE.ShaderMaterial({
+  uniforms: { uInt: { value: 0 }, uStart: { value: 0 }, uTime: { value: 0 } }, side: THREE.DoubleSide,
+  vertexShader: `attribute float aOrder; uniform float uInt, uStart; varying float vK; varying float vOn;
+    void main(){ vK = clamp(-position.y / .2, 0., 1.); ${ENG_ON} vOn = on;
+      gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.); }`,
+  fragmentShader: `uniform float uTime; varying float vK; varying float vOn;
+    void main(){ vec3 off = vec3(.045, .04, .036);
+      vec3 hot = mix(vec3(1., .38, .1) * 1.4, vec3(1., .86, .58) * 3.4, pow(vK, 1.4));
+      float fl = .88 + .12 * sin(uTime * 47. + vK * 9.);
+      gl_FragColor = vec4(mix(off, hot * fl, vOn), 1.); }`,
+});
+
+/* panache individuel : cœur blanc-jaune, diamants de choc, puis rose */
+const enginePlumeMat = new THREE.ShaderMaterial({
+  uniforms: { uInt: { value: 0 }, uStart: { value: 0 }, uTime: { value: 0 }, uLen: { value: 1 } },
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: `attribute float aOrder; uniform float uInt, uStart; varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying float vSeed; varying float vOn;
+    void main(){ vUv = uv; vSeed = aOrder * 91.7; ${ENG_ON} vOn = on;
+      vec4 mv = modelViewMatrix * instanceMatrix * vec4(position, 1.);
+      vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform float uTime; varying vec2 vUv; varying vec3 vN; varying vec3 vV; varying float vSeed; varying float vOn;
+    ${NOISE_GLSL}
+    void main(){
+      float y = 1. - vUv.y;
+      float fr = abs(dot(normalize(vN), normalize(vV)));
+      float body = pow(fr, 1.5);
+      float nn = n(vec2(vUv.x * 9. + vSeed, y * 6. - uTime * 17. + vSeed)) * .5 + n(vec2(vUv.x * 23. - vSeed, y * 17. - uTime * 37.)) * .5;
+      float core = exp(-y * 7.);
+      float diam = pow(max(0., sin(y * 52. - .7)), 10.) * exp(-y * 3.2);
+      vec3 c = mix(vec3(1., .93, .78), vec3(1., .5, .52), smoothstep(.04, .3, y));
+      c = mix(c, vec3(.8, .42, 1.), smoothstep(.3, .9, y));
+      float a = body * (core * .5 + .07 * (1. - y)) * (.55 + .7 * nn) * vOn;
+      c = c * a * 1.05 + vec3(1., .9, .8) * diam * body * vOn * 1.1;
+      gl_FragColor = vec4(c, 1.);
+    }`,
+});
+
+/* étincelles et débris incandescents */
+const SPK = 320;
+const spkPos = new Float32Array(SPK * 3).fill(-9999), spkV = new Float32Array(SPK * 3), spkL = new Float32Array(SPK);
+const spkG = new THREE.BufferGeometry(); spkG.setAttribute('position', new THREE.BufferAttribute(spkPos, 3));
+const sparks = new THREE.Points(spkG, new THREE.PointsMaterial({ color: new THREE.Color(1, 0.62, 0.3).multiplyScalar(3), size: 0.04, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+sparks.frustumCulled = false;
+
 /* ---------- panache de flamme ---------- */
 const plumeVS = `varying vec2 vUv; varying vec3 vN; varying vec3 vV;
   void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`;
@@ -196,13 +259,12 @@ const plumeFS = `uniform float uTime, uInt, uCore, uSeed; varying vec2 vUv; vary
     float fr = abs(dot(normalize(vN), normalize(vV)));
     float body = pow(fr, uCore);
     float nn = n(vec2(vUv.x * 18. + uSeed, y * 7. - uTime * 13.)) * .6 + n(vec2(vUv.x * 41. - uSeed, y * 19. - uTime * 31.)) * .4;
-    float fall = pow(1. - y, 1.4);
-    float a = body * fall * (.45 + .75 * nn) * uInt;
-    float diam = pow(max(0., sin(y * 38. - uTime * 2.)), 14.) * (1. - smoothstep(0., .5, y)) * body;
-    vec3 hot = vec3(1., .95, .86), mid = vec3(1., .56, .2), cool = vec3(.85, .28, .32);
-    vec3 c = mix(hot, mid, smoothstep(0., .3, y)); c = mix(c, cool, smoothstep(.45, 1., y));
-    c += vec3(1., .75, 1.) * diam * .9;
-    gl_FragColor = vec4(c * a * 2.6, 1.);
+    float streak = n(vec2(vUv.x * 70. + uSeed, y * 2.2 - uTime * 5.)) * .6 + n(vec2(vUv.x * 150. - uSeed, y * 4. - uTime * 9.)) * .4;
+    float fall = pow(1. - y, 1.15);
+    float a = body * fall * (.35 + .55 * nn) * (.45 + .9 * streak) * uInt;
+    vec3 hot = vec3(1., .9, .8), pink = vec3(1., .5, .74), viol = vec3(.55, .42, 1.);
+    vec3 c = mix(hot, pink, smoothstep(0., .28, y)); c = mix(c, viol, smoothstep(.35, .95, y));
+    gl_FragColor = vec4(c * a * 2.2, 1.);
   }`;
 function makePlume(rTop, rBot, len, core = 1.2, k = 1) {
   const g = new THREE.Group();
@@ -217,7 +279,7 @@ function makePlume(rTop, rBot, len, core = 1.2, k = 1) {
   disc.rotation.x = Math.PI / 2; disc.position.y = -0.02; g.add(disc);
   g.userData.set = (v, t, spread = 1, lenK = 1) => {
     g.visible = v > 0.002;
-    outer.material.uniforms.uInt.value = v * 0.8 * k; inner.material.uniforms.uInt.value = v * 1.3 * k;
+    outer.material.uniforms.uInt.value = v * 0.62 * k; inner.material.uniforms.uInt.value = v * 0.35 * k;
     outer.material.uniforms.uTime.value = inner.material.uniforms.uTime.value = t;
     outer.scale.set(spread, (1 + (spread - 1) * 0.6) * lenK, spread); inner.scale.set(1, lenK, 1);
     disc.material.opacity = v * 1.2;
@@ -226,33 +288,70 @@ function makePlume(rTop, rBot, len, core = 1.2, k = 1) {
   return g;
 }
 
-/* ---------- fumée du pas de tir ---------- */
-function smokeTexture() {
-  const c = cnv(128, 128), g = c.getContext('2d'), r = rng(5);
-  for (let i = 0; i < 26; i++) {
-    const x = 64 + (r() - 0.5) * 50, y = 64 + (r() - 0.5) * 50, rad = 18 + r() * 34;
-    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
-    gr.addColorStop(0, 'rgba(255,255,255,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+/* ---------- fumée et vapeur du décollage ---------- */
+function smokeTexture(seed) { // volutes « chou-fleur » : bruit fractal + éclairage par le haut
+  const S = 192, c = cnv(S, S), g = c.getContext('2d'), r = rng(seed);
+  const N = 32, grid = new Float32Array(N * N).map(() => r());
+  const vn = (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const q = (i, j) => grid[((j & (N - 1)) * N) + (i & (N - 1))];
+    return (q(xi, yi) * (1 - u) + q(xi + 1, yi) * u) * (1 - v) + (q(xi, yi + 1) * (1 - u) + q(xi + 1, yi + 1) * u) * v;
+  };
+  const fbm = (x, y) => { let t = 0, a = 0.55, f = 1; for (let o = 0; o < 5; o++) { t += a * Math.abs(vn(x * f, y * f) * 2 - 1); a *= 0.5; f *= 2.03; } return t; };
+  const D = new Float32Array(S * S);
+  const ox = r() * 50, oy = r() * 50;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const dx = (x - S / 2) / (S / 2), dy = (y - S / 2) / (S / 2), d = Math.sqrt(dx * dx + dy * dy * 1.15);
+    const n = fbm(x / 26 + ox, y / 26 + oy);
+    D[y * S + x] = Math.max(0, Math.min(1, (1 - d * 1.05) * 1.9 + (n - 0.55) * 1.6));
   }
+  const img = g.createImageData(S, S), px = img.data;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = y * S + x, d = D[i];
+    const up = D[Math.max(0, y - 5) * S + x], dn = D[Math.min(S - 1, y + 5) * S + x];
+    const lit = Math.max(0, Math.min(1, 0.62 + (dn - up) * 1.4 - (y / S - 0.5) * 0.35));
+    const v = Math.round(255 * (0.3 + 0.7 * lit));
+    px[i * 4] = v; px[i * 4 + 1] = v; px[i * 4 + 2] = Math.round(v * 0.98);
+    px[i * 4 + 3] = Math.round(255 * Math.pow(d, 1.25));
+  }
+  g.putImageData(img, 0, 0);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
-const smokeTex = smokeTexture();
+const smokeTexs = [smokeTexture(5), smokeTexture(17), smokeTexture(29)];
 const PAD_Y = -HALF - 0.35;
 const smoke = new THREE.Group(); scene.add(smoke);
 const puffs = [];
-for (let i = 0; i < 150; i++) {
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, transparent: true, depthWrite: false, opacity: 0, color: 0x888888 }));
-  s.userData = { life: 0, max: 1, v: new THREE.Vector3(), rot: 0, alive: false };
+for (let i = 0; i < 380; i++) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTexs[i % 3], transparent: true, depthWrite: false, opacity: 0, color: 0x888888 }));
+  s.userData = { life: 0, max: 1, v: new THREE.Vector3(), alive: false, kind: 0, s0: 1, s1: 5, shade: 1, spin: 0 };
+  s.visible = false;
   smoke.add(s); puffs.push(s);
 }
 const sr = rng(77);
-function spawnPuff(s, strength) {
-  const a = sr() * Math.PI * 2, sp = 1.2 + sr() * 3.8;
-  s.position.set(Math.cos(a) * 0.4, PAD_Y + sr() * 0.4, Math.sin(a) * 0.4 - 0.5);
-  s.userData.v.set(Math.cos(a) * sp, 0.25 + sr() * 1.2, Math.sin(a) * sp * 0.6);
-  s.userData.life = 0; s.userData.max = 3.5 + sr() * 4; s.userData.alive = true; s.userData.k = strength;
-  s.material.rotation = sr() * 6.28;
+const tmpS = new THREE.Vector3();
+function spawnGround(s, k) { // nuages qui roulent sur le pas de tir
+  const a = sr() * Math.PI * 2, sp = 1.5 + sr() * 4.5, u = s.userData;
+  s.position.set(Math.cos(a) * 0.5, PAD_Y + sr() * 0.5, Math.sin(a) * 0.5 - 0.4);
+  u.v.set(Math.cos(a) * sp, 0.15 + sr() * 1.1, Math.sin(a) * sp * 0.35 - 0.6);
+  u.life = 0; u.max = 4 + sr() * 5; u.alive = true; u.k = k; u.kind = 0; u.s0 = 1.1; u.s1 = 5 + sr() * 6;
+  u.shade = 0.22 + sr() * 0.45; u.spin = (sr() - 0.5) * 0.3; s.material.rotation = sr() * 6.28; s.visible = true;
+}
+function spawnFrost(s, k) { // givre et vapeur qui ruissellent le long du booster
+  const a = (sr() - 0.5) * 2.6, u = s.userData; // surtout côté caméra
+  tmpS.set(Math.sin(a) * (R + 0.04), 0.4 + sr() * 6.2, Math.cos(a) * (R + 0.04)); booster.localToWorld(tmpS);
+  s.position.copy(tmpS);
+  u.v.set(Math.sin(a) * 0.12, -0.5 - sr() * 0.7, Math.cos(a) * 0.12);
+  u.life = 0; u.max = 1.4 + sr() * 1.6; u.alive = true; u.k = k * 0.7; u.kind = 2; u.s0 = 0.12 + sr() * 0.1; u.s1 = 0.5 + sr() * 0.5;
+  u.shade = 0.9 + sr() * 0.1; u.spin = (sr() - 0.5) * 0.4; s.material.rotation = sr() * 6.28; s.visible = true;
+}
+function spawnShroud(s, k) { // vapeur qui enveloppe les moteurs et forme la traînée
+  const a = sr() * Math.PI * 2, r = R * (0.9 + sr() * 0.7), u = s.userData;
+  tmpS.set(Math.cos(a) * r, -0.7 + sr() * 0.9, Math.sin(a) * r - 0.15); booster.localToWorld(tmpS);
+  s.position.copy(tmpS);
+  u.v.set(Math.cos(a) * (0.3 + sr() * 0.9), -0.8 - sr() * 1.8, Math.sin(a) * (0.3 + sr() * 0.9));
+  u.life = 0; u.max = 2.2 + sr() * 3; u.alive = true; u.k = k; u.kind = 1; u.s0 = 0.3 + sr() * 0.25; u.s1 = 1.0 + sr() * 1.2;
+  u.shade = 0.8 + sr() * 0.2; u.spin = (sr() - 0.5) * 0.5; s.material.rotation = sr() * 6.28; s.visible = true;
 }
 
 /* ---------- le « 3 » chromé et le mot Starship ---------- */
@@ -301,7 +400,13 @@ const booster = rocket.booster; booster.position.y = -3.6; boosterPivot.add(boos
 const shipPivot = new THREE.Group(); shipPivot.position.y = BOOST_TOP + 2.6; stack.add(shipPivot);
 const ship = rocket.ship; ship.position.y = -2.6; shipPivot.add(ship);
 
-const boosterPlume = makePlume(0.43, 1.25, 7.5, 1.1, 1.0); booster.add(boosterPlume); boosterPlume.position.y = -0.2;
+const boosterPlume = makePlume(0.43, 1.25, 7.5, 1.1, 1.0); booster.add(boosterPlume); boosterPlume.position.y = -0.55;
+const bellIn = new THREE.InstancedMesh(nozzleGeo(0.0205, 0.0515, 0.197, 28), bellInMat, ENG.length); placeEngines(bellIn, 0); booster.add(bellIn);
+const engGeo = new THREE.CylinderGeometry(0.05, 0.15, 2.4, 20, 30, true); engGeo.translate(0, -1.2, 0);
+const enginePlumes = new THREE.InstancedMesh(engGeo, enginePlumeMat, ENG.length); placeEngines(enginePlumes, -0.2); booster.add(enginePlumes);
+enginePlumes.visible = false;
+scene.add(sparks);
+const exitGlow = new THREE.PointLight(0xffb070, 0, 6, 1.5); booster.add(exitGlow); exitGlow.position.set(0, -0.6, 0);
 const shipPlume = makePlume(0.36, 0.9, 4.2, 1.2, 0.9); ship.add(shipPlume); shipPlume.position.y = -0.34;
 
 const heroGroup = new THREE.Group(); world.add(heroGroup);
@@ -568,7 +673,7 @@ function frame() {
   if (!mobile) T.shiftX += 0.09 * shipOnly; // un peu plus à droite, loin du texte
   T.hero = 1 - sstep(0.0, 0.55, heroP);
   T.atmo = 0; T.alt = 0; T.shipOnly = shipOnly; T.tx = 0; T.tz = 0; T.yaw = 0; T.over = 0; T.night = 0; T.re = 0;
-  let stackY = -HALF, shipUp = 0, bDown = 0, bX = 0, bRotZ = 0, bFlame = 0, sFlame = 0, bbFlame = 0, hsGlow = 0, spread = 1, smokeOn = 0, shake = 0, stackRot = null;
+  let closeUp = 0, engStart = 0, stackY = -HALF, shipUp = 0, bDown = 0, bX = 0, bRotZ = 0, bFlame = 0, sFlame = 0, bbFlame = 0, hsGlow = 0, spread = 1, smokeOn = 0, shake = 0, stackRot = null;
 
   if (launchP > 0) {
     const p = launchP;
@@ -598,9 +703,13 @@ function frame() {
     const wr = win(p, 0.47, 0.53, 0.62, 0.72), ws = sstep(0.64, 0.82, p);
     const wy = aY * (1 - wr) * (1 - ws) + ringY * wr * (1 - ws) + shipY * ws;
     const wd = lerp(lerp(lerp(22, 27, sstep(0.12, 0.45, p)), 13, wr), 17, ws);
-    T.ty = lerp(T.ty, wy + HALF, lw);
-    T.d = lerp(T.d, wd * (mobile ? 1.3 : 1), lw);
-    T.e = lerp(T.e, lerp(-0.1, 0.06, sstep(0.3, 0.6, p)), lw);
+    const wc = win(p, 0.035, 0.075, 0.15, 0.24); // gros plan sur les 33 moteurs
+    closeUp = wc * lw;
+    const wyC = lerp(wy, stackY + 0.75, wc), wdC = lerp(wd, mobile ? 7.5 : 5.6, wc);
+    T.ty = lerp(T.ty, wyC + HALF, lw);
+    T.d = lerp(T.d, wdC * (mobile && wc < 0.5 ? 1.3 : 1), lw);
+    T.e = lerp(T.e, lerp(lerp(-0.1, 0.06, sstep(0.3, 0.6, p)), -0.3, wc), lw);
+    engStart = sstep(0.075, 0.115, p);
     T.shiftX = lerp(T.shiftX, 0, lw); T.shiftY = lerp(T.shiftY, mobile ? -0.05 : -0.04, lw);
     stackRot = lerp(T.rot, 0.35 + p * 0.9, lw);
     T.rot = stackRot;
@@ -705,7 +814,7 @@ function frame() {
   textPlane.position.x = (reduce ? 0 : SS.mx * -0.15);
 
   // flammes, lumières
-  boosterPlume.userData.set(Math.max(bFlame, bbFlame) * (0.92 + Math.random() * 0.08), time, spread);
+  boosterPlume.userData.set(Math.max(bFlame, bbFlame) * (0.92 + Math.random() * 0.08) * (1 - 0.7 * closeUp), time, spread);
   const sepK = clamp((launchP - 0.56) / 0.44);
   shipPlume.userData.set(sFlame * (0.92 + Math.random() * 0.08), time, 1 + sepK * 1.2, 0.08 + 0.92 * sstep(0, 0.12, sepK));
   booster.userData.glowRing.material.opacity = hsGlow * 0.9;
@@ -715,22 +824,79 @@ function frame() {
   if (retMode) { fireLight.position.set(rPos.x, rPos.y - 3.4, rPos.z + 0.4); fireLight.intensity = (rEng * 9 + rFire * 18 + rPlasma * 14) * (0.85 + Math.random() * 0.3); fireLight.color.setRGB(1, lerp(0.54, 0.62, rPlasma), lerp(0.23, 0.5, rPlasma)); }
   stageLight.position.set(0, stack.position.y + BOOST_TOP + shipUp * 0.3, -0.2); stageLight.intensity = (hsGlow * 14 + sFlame * 2) * (0.85 + Math.random() * 0.3);
 
-  // fumée
-  if (smokeOn > 0.01 || puffs.some((p) => p.userData.alive)) {
-    let spawn = smokeOn > 0.01 ? Math.ceil(smokeOn * 3) : 0;
+  // 33 moteurs
+  const engI = Math.max(bFlame, bbFlame) > 0.002 ? 1 : 0;
+  const flick = 0.93 + Math.random() * 0.07;
+  bellInMat.uniforms.uInt.value = (bFlame > 0.001 ? 1 : bbFlame > 0.001 ? 0.6 : 0) * flick;
+  bellInMat.uniforms.uStart.value = bbFlame > 0.001 ? 1 : engStart;
+  bellInMat.uniforms.uTime.value = time;
+  enginePlumes.visible = engI > 0;
+  enginePlumeMat.uniforms.uInt.value = Math.max(bFlame, bbFlame * 1.4) * flick;
+  enginePlumeMat.uniforms.uStart.value = bellInMat.uniforms.uStart.value;
+  enginePlumeMat.uniforms.uTime.value = time;
+  enginePlumes.scale.set(1, 1 + (spread - 1) * 0.5, 1);
+  exitGlow.intensity = bFlame * 3 * flick;
+
+  // étincelles
+  const spkOn = bFlame * (1 - sstep(0.2, 0.32, launchP));
+  sparks.material.opacity = spkOn;
+  if (spkOn > 0.01 || sparks.userData.alive) {
+    let born = spkOn > 0.01 ? 7 : 0, any = false;
+    for (let i = 0; i < SPK; i++) {
+      const j = i * 3;
+      if (spkL[i] <= 0) {
+        if (born > 0) {
+          const e = ENG[(Math.random() * ENG.length) | 0];
+          tmpS.set(e[0], -0.22, e[1]); booster.localToWorld(tmpS);
+          spkPos[j] = tmpS.x; spkPos[j + 1] = tmpS.y; spkPos[j + 2] = tmpS.z;
+          const a = Math.random() * 6.283, o = 0.6 + Math.random() * 2.6;
+          spkV[j] = Math.cos(a) * o; spkV[j + 1] = -2 - Math.random() * 6; spkV[j + 2] = Math.sin(a) * o;
+          spkL[i] = 0.4 + Math.random() * 1.1; born--;
+        } else { spkPos[j + 1] = -9999; continue; }
+      }
+      any = true;
+      spkL[i] -= dt;
+      spkV[j + 1] -= 4 * dt;
+      spkPos[j] += spkV[j] * dt; spkPos[j + 1] += spkV[j + 1] * dt; spkPos[j + 2] += spkV[j + 2] * dt;
+    }
+    sparks.userData.alive = any;
+    spkG.attributes.position.needsUpdate = true;
+  }
+
+  // fumée et vapeur
+  const groundOn = smokeOn * (1 - sstep(4, 10, stackY + HALF));
+  const shroudOn = bFlame * (1 - sstep(0.24, 0.36, launchP));
+  if (groundOn > 0.01 || shroudOn > 0.01 || puffs.some((q) => q.userData.alive)) {
+    let nG = groundOn > 0.01 && Math.random() < 0.3 + groundOn * 0.5 ? 1 : 0;
+    let nS = shroudOn > 0.01 && Math.random() < 0.6 ? 1 : 0;
+    let nF = shroudOn > 0.01 && Math.random() < 0.6 ? 1 : 0;
+    const bottomY = bw.y - 3.6;
     for (const s of puffs) {
       const u = s.userData;
-      if (!u.alive) { if (spawn > 0) { spawnPuff(s, smokeOn); spawn--; } else { s.material.opacity = 0; continue; } }
+      if (!u.alive) {
+        if (nS > 0) { spawnShroud(s, shroudOn); nS--; }
+        else if (nF > 0) { spawnFrost(s, shroudOn); nF--; }
+        else if (nG > 0) { spawnGround(s, groundOn); nG--; }
+        else continue;
+      }
       u.life += dt;
       const t = u.life / u.max;
-      if (t >= 1) { u.alive = false; s.material.opacity = 0; continue; }
-      u.v.multiplyScalar(1 - dt * 0.35); u.v.y += dt * 0.08;
+      if (t >= 1) { u.alive = false; s.visible = false; s.material.opacity = 0; continue; }
+      u.v.multiplyScalar(1 - dt * (u.kind ? 0.9 : 0.35)); u.v.y += dt * (u.kind === 1 ? 0.25 : u.kind === 2 ? -0.2 : 0.1);
       s.position.addScaledVector(u.v, dt);
-      const sc = 1.4 + t * 7.5; s.scale.set(sc, sc, 1);
-      s.material.opacity = Math.sin(Math.PI * Math.min(1, t * 1.6)) * 0.85 * u.k;
-      const lit = bFlame * Math.exp(-(s.position.y - PAD_Y) * 0.25) * (1 - t);
-      s.material.color.setRGB(0.3 + lit * 0.55, 0.28 + lit * 0.3, 0.28 + lit * 0.1);
-      s.material.rotation += dt * 0.1;
+      const sc = u.s0 + (u.s1 - u.s0) * (1 - Math.pow(1 - t, 2)); s.scale.set(sc, sc, 1);
+      s.material.opacity = Math.min(1, t * 6) * (1 - Math.pow(t, 1.6)) * (u.kind === 0 ? 0.7 : u.kind === 1 ? 0.5 : 0.45) * u.k * clamp((s.position.distanceTo(camera.position) - 2.5) / 5) * (mobile ? 0.6 : 1);
+      // lumière du soleil couchant + lueur orange des moteurs par en dessous
+      let near = Math.exp(-Math.abs(s.position.y - bottomY + 0.6) * 0.55) * bFlame;
+      if (u.kind === 0) near = Math.max(near, bFlame * Math.exp(-Math.max(0, s.position.y - PAD_Y) * 0.22) * 1.5 * (1 - t * 0.6));
+      if (u.kind === 2) near *= 0.3;
+      const sunW = u.shade * (0.82 + 0.18 * cur.atmo);
+      const keep = 1 - Math.min(0.6, near * 0.45);
+      s.material.color.setRGB(
+        sunW * 0.96 * keep + near * 1.25,
+        sunW * 0.9 * keep + near * 0.5,
+        sunW * 0.86 * keep + near * 0.12);
+      s.material.rotation += dt * u.spin;
     }
   }
 
@@ -762,7 +928,7 @@ function frame() {
   starU.uTime.value = time;
   starU.uOp.value = Math.max((0.55 + 0.45 * sstep(0.3, 1, cur.alt)) * (1 - cur.atmo * (1 - sstep(0.2, 0.8, cur.alt))), cur.re * 0.85) * (1 - cur.paper);
   renderer.toneMappingExposure = 1.0 - cur.paper * 0.05;
-  bloom.strength = (0.26 + bFlame * 0.25 + hsGlow * 0.35 + sFlame * 0.1 + rEng * 0.15 + rPlasma * 0.3 + cur.night * 0.25) * (1 - cur.paper);
+  bloom.strength = (0.26 + bFlame * 0.12 + hsGlow * 0.35 + sFlame * 0.1 + rEng * 0.15 + rPlasma * 0.3 + cur.night * 0.25) * (1 - cur.paper);
   bloom.threshold = lerp(1.05 + cur.atmo * 0.5, 1.0, cur.night);
   sun.intensity = lerp(lerp(2.2 + cur.atmo * 0.6, 0.9, cur.over), 0.3, cur.night);
   sun.color.setRGB(lerp(1, 0.86, cur.over), lerp(lerp(0.89, 0.7, cur.atmo), 0.9, cur.over), lerp(lerp(0.77, 0.5, cur.atmo), 1, cur.over));
