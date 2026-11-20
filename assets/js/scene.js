@@ -696,7 +696,7 @@ function frame() {
   shipPivot.rotation.z = -sstep(0.0, 1.0, clamp((launchP - 0.6) / 0.4)) * 0.12;
 
   // hero : « 3 » et texte
-  const hv = cur.hero * rvE;
+  const hv = cur.hero * rvE * (1 - sstep(0.45, 0.9, heroP)) * (anatP > 0 || launchP > 0 ? 0 : 1);
   heroGroup.visible = hv > 0.003;
   heroGroup.position.y = 0.05 + (1 - cur.hero) * 2;
   three3.scale.setScalar(lerp(0.75, 1, hv));
@@ -704,7 +704,7 @@ function frame() {
   three3.rotation.x = (reduce ? 0 : SS.my * 0.12);
   three3.position.z = -2.0 - (1 - cur.hero) * 6;
   three3.children.forEach((m) => { m.material.transparent = hv < 0.999; m.material.opacity = hv; });
-  textMat.opacity = clamp((rv - 0.25) / 0.5) * cur.hero;
+  textMat.opacity = clamp((rv - 0.25) / 0.5) * Math.min(cur.hero, hv * 4);
   textMat.color.setRGB(0.93 - cur.paper * 0.9, 0.93 - cur.paper * 0.9, 0.94 - cur.paper * 0.89);
   textPlane.position.x = (reduce ? 0 : SS.mx * -0.15);
 

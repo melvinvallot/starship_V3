@@ -172,18 +172,30 @@
   });
 
   /* ---------- Anatomie ---------- */
+  // [liste, titre, texte, étage, hauteur (m depuis la base), [[clé, valeur] × 3]]
   const steps = [
-    ['Vue d\'ensemble', 'Le système Starship', 'Super Heavy, le premier étage, propulse l\'ensemble pendant environ deux minutes et demie. Starship, le second étage, termine le trajet jusqu\'à l\'orbite. Les deux sont conçus pour être récupérés et réutilisés.', '124,4 m', 'hauteur totale'],
-    ['Coiffe', 'Coiffe', 'Une pointe ogivale en acier inoxydable, recouverte de tuiles côté exposé. Elle abrite un réservoir d\'en-tête utilisé pour la manœuvre d\'atterrissage et encaisse les plus fortes contraintes aérodynamiques.', '9 m', 'de diamètre, comme tout le lanceur'],
-    ['Volets avant', 'Volets avant', 'Deux volets articulés pilotent le vaisseau pendant sa chute à plat dans l\'atmosphère. Sur V3, ils sont plus petits et décalés du côté sous le vent, pour être moins exposés au plasma.', '4', 'volets au total'],
-    ['Soute', 'Soute', 'Une longue porte façon distributeur libère les satellites Starlink de nouvelle génération un par un. Sur V3, l\'objectif est de dépasser 100 tonnes en orbite basse, en mode réutilisable.', '> 100 t', 'en orbite basse'],
-    ['Bouclier thermique', 'Bouclier thermique', 'Environ 18 000 tuiles hexagonales en céramique couvrent la face qui affronte la rentrée. Fixées par des goujons, elles laissent l\'acier se dilater librement sous elles.', '≈ 18 000', 'tuiles hexagonales'],
-    ['Volets arrière', 'Volets arrière & 6 Raptor', 'Les grands volets arrière stabilisent la chute. Dans la jupe, trois Raptor 3 pour l\'atmosphère, au centre, et trois Raptor Vacuum à grande tuyère pour le vide spatial.', '6', 'moteurs Raptor 3'],
-    ['Hot staging', 'Anneau de hot staging', 'Le vaisseau allume ses moteurs avant même de se séparer. L\'anneau ajouré laisse s\'échapper les gaz brûlants. Sur V3, il fait partie intégrante du booster.', '≈ 65 km', 'altitude de séparation'],
-    ['Grid fins', 'Grid fins', 'Trois grilles de pilotage, plus grandes et plus robustes que les quatre des versions précédentes. Elles orientent le booster pendant sa descente vers les bras de la tour.', '3', 'grilles, contre 4 avant'],
-    ['Chines', 'Chines', 'Deux profilés longitudinaux courent le long du booster. Ils ajoutent un peu de portance et stabilisent sa trajectoire pendant le retour vers le site de lancement.', '× 2', 'profilés latéraux'],
-    ['Premier étage', 'Super Heavy', 'Le premier étage : environ 72 mètres d\'acier et plus de 3 400 tonnes de méthane et d\'oxygène liquide. Il revient se faire attraper par la tour quelques minutes après le décollage.', '≈ 72 m', 'hauteur du booster'],
-    ['33 Raptor 3', '33 Raptor 3', 'Trente-trois moteurs au méthane, plus simples et plus légers que les Raptor 2. Ils n\'ont plus besoin de carénage de protection. Ensemble, ils développent la plus forte poussée de l\'histoire.', '≈ 9 200 tf', 'au décollage'],
+    ['Vue d\'ensemble', 'Le système Starship', 'Super Heavy, le premier étage, propulse l\'ensemble pendant environ deux minutes et demie. Starship, le second étage, termine le trajet jusqu\'à l\'orbite. Les deux sont conçus pour être récupérés et réutilisés.', 'Système complet', 62,
+      [['Hauteur', '124,4 m'], ['Masse au décollage', '≈ 5 600 t'], ['Moteurs', '39 Raptor 3']]],
+    ['Coiffe', 'Coiffe', 'Une pointe ogivale en acier inoxydable, recouverte de tuiles côté exposé. Elle abrite un réservoir d\'en-tête utilisé pour la manœuvre d\'atterrissage et encaisse les plus fortes contraintes aérodynamiques.', 'Starship · second étage', 121,
+      [['Matériau', 'Acier inoxydable'], ['Protection', 'Tuiles en céramique'], ['Contient', 'Réservoir d\'en-tête']]],
+    ['Volets avant', 'Volets avant', 'Deux volets articulés pilotent le vaisseau pendant sa chute à plat dans l\'atmosphère. Sur V3, ils sont plus petits et décalés du côté sous le vent, pour être moins exposés au plasma.', 'Starship · second étage', 117,
+      [['Nombre', '2'], ['Rôle', 'Contrôle en chute à plat'], ['Sur V3', 'Plus petits, côté sous le vent']]],
+    ['Soute', 'Soute', 'Une longue porte façon distributeur libère les satellites Starlink de nouvelle génération un par un. Sur V3, l\'objectif est de dépasser 100 tonnes en orbite basse, en mode réutilisable.', 'Starship · second étage', 108,
+      [['Charge utile visée', '> 100 t'], ['Ouverture', 'Porte « distributeur »'], ['Usage', 'Satellites Starlink']]],
+    ['Bouclier thermique', 'Bouclier thermique', 'Environ 18 000 tuiles hexagonales en céramique couvrent la face qui affronte la rentrée. Fixées par des goujons, elles laissent l\'acier se dilater librement sous elles.', 'Starship · second étage', 98,
+      [['Tuiles', '≈ 18 000'], ['Température', '> 1 400 °C'], ['Vitesse de rentrée', '> 26 000 km/h']]],
+    ['Volets arrière', 'Volets arrière & 6 Raptor', 'Les grands volets arrière stabilisent la chute. Dans la jupe, trois Raptor 3 pour l\'atmosphère, au centre, et trois Raptor Vacuum à grande tuyère pour le vide spatial.', 'Starship · second étage', 76,
+      [['Raptor atmosphère', '3'], ['Raptor Vacuum', '3'], ['Volets arrière', '2']]],
+    ['Hot staging', 'Anneau de hot staging', 'Le vaisseau allume ses moteurs avant même de se séparer. L\'anneau ajouré laisse s\'échapper les gaz brûlants. Sur V3, il fait partie intégrante du booster.', 'Interface entre les étages', 72,
+      [['Altitude', '≈ 65 km'], ['Moment', '≈ T+02:40'], ['Sur V3', 'Intégré au booster']]],
+    ['Grid fins', 'Grid fins', 'Trois grilles de pilotage, plus grandes et plus robustes que les quatre des versions précédentes. Elles orientent le booster pendant sa descente vers les bras de la tour.', 'Super Heavy · premier étage', 68,
+      [['Nombre', '3, contre 4 avant'], ['Rôle', 'Guidage en descente'], ['Retour', 'Capture par la tour']]],
+    ['Chines', 'Chines', 'Deux profilés longitudinaux courent le long du booster. Ils ajoutent un peu de portance et stabilisent sa trajectoire pendant le retour vers le site de lancement.', 'Super Heavy · premier étage', 32,
+      [['Nombre', '2'], ['Position', 'Flancs du booster'], ['Rôle', 'Portance et stabilité']]],
+    ['Premier étage', 'Super Heavy', 'Le premier étage : environ 72 mètres d\'acier et plus de 3 400 tonnes de méthane et d\'oxygène liquide. Il revient se faire attraper par la tour quelques minutes après le décollage.', 'Super Heavy · premier étage', 36,
+      [['Hauteur', '≈ 72 m'], ['Ergols', '> 3 400 t'], ['Retour', '≈ 7 min après le décollage']]],
+    ['33 Raptor 3', '33 Raptor 3', 'Trente-trois moteurs au méthane, plus simples et plus légers que les Raptor 2. Ils n\'ont plus besoin de carénage de protection. Ensemble, ils développent la plus forte poussée de l\'histoire.', 'Super Heavy · premier étage', 0,
+      [['Poussée totale', '≈ 9 200 tf'], ['Par moteur', '≈ 280 tf'], ['Ergols', 'Méthane + oxygène liquide']]],
   ];
   SS.anatSteps = steps.length;
   $('#anTot').textContent = String(steps.length).padStart(2, '0');
@@ -199,9 +211,12 @@
     const s = steps[i];
     anBtns.forEach((b, j) => b.classList.toggle('on', j === i));
     $('#anIdx').textContent = String(i + 1).padStart(2, '0');
+    $('#anMark').style.left = (s[4] / 124.4) * 100 + '%';
+    $('#anPosV').textContent = i === 0 ? '124,4 m' : `à ${s[4]} m`;
     const swap = () => {
       $('#anTitle').textContent = s[1]; $('#anText').textContent = s[2];
-      $('#anStat').textContent = s[3]; $('#anStatL').textContent = s[4];
+      $('#anPart').textContent = s[3];
+      $('#anSpecs').innerHTML = s[5].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
     };
     if (first || reduce) { swap(); return; }
     gsap.timeline()
@@ -215,13 +230,13 @@
     onUpdate: (s) => {
       const f = s.progress * (steps.length - 1);
       showStep(Math.round(f));
-      $('#anBar').style.transform = `scaleX(${s.progress})`;
     },
   });
   anBtns.forEach((b) => b.addEventListener('click', () => {
     const st = SS.st.anat, i = +b.dataset.i;
     scrollTo(st.start + (st.end - st.start) * (i / (steps.length - 1)) + 2);
   }));
+  gsap.from('.ex', { y: 24, opacity: 0, duration: 0.9, stagger: 0.06, ease: 'expo.out', scrollTrigger: { trigger: '.explore', start: 'top 85%', toggleActions: 'play none none reverse' } });
   gsap.from('#anatCard', { x: -40, opacity: 0, duration: 1, ease: 'expo.out', scrollTrigger: { trigger: '#anatomie', start: 'top 60%', toggleActions: 'play none none reverse' } });
 
   /* ---------- Lancement : HUD, callouts ---------- */

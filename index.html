@@ -113,9 +113,22 @@
 
 <!-- ============ INTRO ============ -->
 <section id="intro" class="intro">
-  <div class="wrap">
-    <p class="eyebrow">Le système</p>
-    <p class="reveal-words" id="revealWords">Deux étages. Trente-neuf moteurs. Cent vingt-quatre mètres d'acier inoxydable. Starship&nbsp;V3 est le plus grand lanceur jamais construit, et il est conçu pour revenir, être ravitaillé et repartir.</p>
+  <div class="wrap intro-grid">
+    <div class="intro-copy">
+      <p class="eyebrow">Le système</p>
+      <p class="reveal-words" id="revealWords">Deux étages. Trente-neuf moteurs. Cent vingt-quatre mètres d'acier inoxydable. Le plus grand lanceur jamais construit, conçu pour revenir et repartir.</p>
+    </div>
+    <nav class="explore" aria-label="Explorer le site">
+      <p class="eyebrow">À explorer</p>
+      <div class="ex-grid">
+        <a href="#anatomie" data-scroll class="ex"><span class="ex-k">Anatomie</span><span class="ex-d">11 composants, de la coiffe aux 33 moteurs, avec leur fiche technique.</span><i aria-hidden="true">→</i></a>
+        <a href="#lancement" data-scroll class="ex"><span class="ex-k">Lancement</span><span class="ex-d">Pilotez le décollage au scroll, jusqu'à la séparation des étages.</span><i aria-hidden="true">→</i></a>
+        <a href="#raptor" data-scroll class="ex"><span class="ex-k">Raptor 3</span><span class="ex-d">Allumez les 33 moteurs du booster et survolez-les un par un.</span><i aria-hidden="true">→</i></a>
+        <a href="#mission" data-scroll class="ex"><span class="ex-k">Mission</span><span class="ex-d">Les 9 étapes d'un vol, du pas de tir à la capture par la tour.</span><i aria-hidden="true">→</i></a>
+        <a href="#echelle" data-scroll class="ex"><span class="ex-k">Échelle</span><span class="ex-d">Starship face à Saturn V, SLS, Ariane 6 et la statue de la Liberté.</span><i aria-hidden="true">→</i></a>
+        <a href="#versions" data-scroll class="ex"><span class="ex-k">Versions</span><span class="ex-d">Ce qui change entre V1, V2 et V3, chiffres à l'appui.</span><i aria-hidden="true">→</i></a>
+      </div>
+    </nav>
   </div>
 </section>
 
@@ -125,11 +138,17 @@
     <div class="anat-card" id="anatCard">
       <div class="anat-meta"><span class="eyebrow">Anatomie</span><span class="anat-idx"><b id="anIdx">01</b> / <span id="anTot">11</span></span></div>
       <div class="anat-body" id="anatBody">
+        <span class="anat-part" id="anPart">Système complet</span>
         <h2 id="anTitle">Le système Starship</h2>
         <p id="anText">Super Heavy, le premier étage, propulse l'ensemble pendant environ deux minutes et demie. Starship, le second étage, termine le trajet jusqu'à l'orbite.</p>
-        <div class="anat-stat"><b id="anStat">124,4 m</b><span id="anStatL">hauteur totale</span></div>
+        <dl class="anat-specs" id="anSpecs"></dl>
       </div>
-      <div class="anat-bar"><i id="anBar"></i></div>
+      <div class="anat-pos" aria-hidden="true">
+        <span>Base</span>
+        <div class="anat-track"><i class="split"></i><i class="mark" id="anMark"></i></div>
+        <span>Coiffe</span>
+        <b id="anPosV">0 m</b>
+      </div>
     </div>
     <ol class="anat-list" id="anatList"></ol>
   </div>
