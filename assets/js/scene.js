@@ -191,7 +191,8 @@ const ENG = [];
 });
 const NOISE_GLSL = `float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
   float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
-    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }`;
+    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
+  float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++){ s += a * n(p); p = p * 2.07 + 3.1; a *= .5; } return s; }`;
 const engOrder = new THREE.InstancedBufferAttribute(new Float32Array(ENG.map((_, i) => i / ENG.length)), 1);
 function placeEngines(mesh, y) {
   const M = new THREE.Matrix4();
@@ -339,6 +340,17 @@ function smokeTexture(seed, lumps) {
   t.flipY = false; t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter; t.magFilter = THREE.LinearFilter;
   t.needsUpdate = true; return t;
 }
+function softPuffTexture() { // bouffée douce (séquence de retour)
+  const c = cnv(128, 128), g = c.getContext('2d'), r = rng(5);
+  for (let i = 0; i < 26; i++) {
+    const x = 64 + (r() - 0.5) * 50, y = 64 + (r() - 0.5) * 50, rad = 18 + r() * 34;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    gr.addColorStop(0, 'rgba(255,255,255,.22)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, Math.PI * 2); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const smokeTex = softPuffTexture();
 const smokeTexs = [smokeTexture(5, 110), smokeTexture(17, 90), smokeTexture(29, 130), smokeTexture(41, 80)];
 function wispTexture(seed) { // voile de vapeur étiré verticalement
   const S = 128, r = rng(seed), N = 32, grid = new Float32Array(N * N).map(() => r());
@@ -501,10 +513,6 @@ const landPlumes = [0, 1, 2].map((i) => {
 // plasma de rentrée : deux gaines qui épousent la coque (tuiles chauffées au rouge + onde de choc rose),
 // un halo diffus sous le ventre et un sillage ionisé orienté à l'opposé de la vitesse
 function shipRadiusAt(y) { return y < SHIP_CYL ? R : R * Math.sqrt(Math.max(0, 1 - Math.pow((y - SHIP_CYL) / (SHIP_H - SHIP_CYL), 2))); }
-const NOISE_GLSL = `float h(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
-  float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.-2.*f);
-    return mix(mix(h(i), h(i+vec2(1,0)), f.x), mix(h(i+vec2(0,1)), h(i+vec2(1,1)), f.x), f.y); }
-  float fbm(vec2 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++){ s += a * n(p); p = p * 2.07 + 3.1; a *= .5; } return s; }`;
 function sheathGeo(off, stand, tipExt) {
   const pts = [];
   const N = 70;
@@ -929,6 +937,7 @@ function frame() {
   }
 
   // fumée et vapeur
+  smoke.visible = !retMode; // les nuages du décollage n'apparaissent pas pendant le retour
   const groundOn = smokeOn * (1 - sstep(4, 12, stackY + HALF));
   const shroudOn = bFlame * (1 - sstep(0.26, 0.38, launchP));
   if (groundOn > 0.01 || shroudOn > 0.01 || puffs.some((q) => q.userData.alive)) {
