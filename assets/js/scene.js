@@ -268,7 +268,7 @@ function makeThree() {
   // embouts arrondis
   const mat = new THREE.MeshPhysicalMaterial({
     color: 0xf2f2f2, metalness: 1, roughness: 0.14, envMapIntensity: 1.25,
-    iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 640], clearcoat: 1, clearcoatRoughness: 0.08,
+    iridescence: 1, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 640], clearcoat: 1, clearcoatRoughness: 0.08, transparent: true,
   });
   const g = new THREE.Group();
   g.add(new THREE.Mesh(geo, mat));
@@ -476,7 +476,7 @@ composer.addPass(new OutputPass());
 
 /* ---------- étapes de l'anatomie (cible locale y, distance, élévation, rotation) ---------- */
 const anatK = [
-  { y: HALF, d: null, e: 0.0, r: 0.0 },                  // vue d'ensemble
+  { y: BOOST_TOP + 2.75, d: 10.5, e: 0.0, r: 0.35 },     // vue d'ensemble : même gros plan que « Le système », sans recul
   { y: BOOST_TOP + 4.75, d: 4.2, e: 0.12, r: 0.5 },       // coiffe
   { y: BOOST_TOP + 4.45, d: 4.4, e: 0.05, r: -1.0 },      // volets avant
   { y: BOOST_TOP + 3.4, d: 4.8, e: 0.0, r: 0.12 },        // soute
@@ -561,7 +561,7 @@ function frame() {
   T.shiftY = mobile ? -0.17 * sstep(0.0, 0.03, anatP) : 0;
   T.gap = 0.3 * (1 - sstep(0.1, 0.8, introP));
   // section « Le système » : gros plan sur le vaisseau seul, le booster sort par le bas
-  const shipOnly = sstep(0.05, 0.75, introP) * (1 - sstep(0.0, 0.07, anatP));
+  const shipOnly = sstep(0.22, 0.85, introP) * (1 - sstep(0.0, 0.07, anatP));
   T.ty = lerp(T.ty, BOOST_TOP + 2.75, shipOnly);
   T.d = lerp(T.d, 10.5 * (mobile ? 1.3 : 1), shipOnly);
   T.rot = lerp(T.rot, 0.35, shipOnly);
@@ -692,14 +692,14 @@ function frame() {
   if (vapor.visible) { const g = clamp((retP - 0.752) / 0.2); vapor.children.forEach((sp) => { const u = sp.userData; sp.position.set(u.o.x + u.v.x * g * 2, u.o.y + u.v.y * g * 2, u.o.z + u.v.z * g * 2); sp.scale.setScalar(u.s * (0.9 + g * 3.6)); sp.material.opacity = rVapor * 0.09 * (1 - g * 0.6); sp.material.color.setRGB(lerp(0.7, 0.5, cur.night), lerp(0.72, 0.45, cur.night), lerp(0.78, 0.58, cur.night)); }); }
 
   // hero : « 3 » et texte
-  const hv = cur.hero * rvE * (1 - sstep(0.45, 0.9, heroP)) * (anatP > 0 || launchP > 0 ? 0 : 1);
+  const hv = rvE * (1 - sstep(0.02, 0.32, heroP)) * (anatP > 0 || launchP > 0 ? 0 : 1);
   heroGroup.visible = hv > 0.003;
   heroGroup.position.y = 0.05 + (1 - cur.hero) * 2;
   three3.scale.setScalar(lerp(0.75, 1, hv));
   three3.rotation.y = (reduce ? 0 : SS.mx * 0.35 + Math.sin(time * 0.35) * 0.12);
   three3.rotation.x = (reduce ? 0 : SS.my * 0.12);
   three3.position.z = -2.0 - (1 - cur.hero) * 6;
-  three3.children.forEach((m) => { m.material.transparent = hv < 0.999; m.material.opacity = hv; });
+  three3.children.forEach((m) => { m.material.opacity = hv; }); // matériau toujours transparent : le fondu fonctionne
   textMat.opacity = clamp((rv - 0.25) / 0.5) * Math.min(cur.hero, hv * 4);
   textMat.color.setRGB(0.93 - cur.paper * 0.9, 0.93 - cur.paper * 0.9, 0.94 - cur.paper * 0.89);
   textPlane.position.x = (reduce ? 0 : SS.mx * -0.15);
