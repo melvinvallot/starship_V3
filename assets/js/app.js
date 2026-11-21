@@ -143,7 +143,7 @@
   /* ---------- Progression, rail, nav active ---------- */
   const navBar = $('#navProgress');
   ScrollTrigger.create({ start: 0, end: 'max', onUpdate: (s) => (navBar.style.transform = `scaleX(${s.progress})`) });
-  ['hero', 'anatomie', 'lancement', 'raptor', 'mission', 'echelle', 'versions', 'vols', 'largage'].forEach((id) => {
+  ['hero', 'anatomie', 'lancement', 'retour', 'raptor', 'mission', 'echelle', 'versions', 'vols', 'largage'].forEach((id) => {
     ScrollTrigger.create({
       trigger: '#' + id, start: 'top 55%', end: 'bottom 55%',
       onToggle: (s) => {
